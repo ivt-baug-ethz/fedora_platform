@@ -110,6 +110,18 @@ Always check for a virtual environment before running any Python command.
 
 ---
 
+## Memory Bank — MANDATORY
+
+All files in `memory-bank/` MUST be read at the start of every session and updated
+at the end. They are the primary source of project context — treat them as your
+persistent working memory across sessions.
+
+- `projectbrief.md` — read-only unless scope changes
+- `systemPatterns.md` — update when architecture changes
+- `techContext.md` — update when dependencies or environment changes
+- `activeContext.md` — update every session (current focus + recent changes)
+- `progress.md` — update every session (what works, what's broken)
+
 ## Code Quality
 
 - Follow existing code style and naming conventions exactly — do not diverge without instruction.
