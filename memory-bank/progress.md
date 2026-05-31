@@ -9,10 +9,12 @@
 - SUMO integration for traffic simulation.
 - Test suite with basic functionality testing.
 - Example script for running Priority Pass simulation.
-- `simple_b` five-file TCP FSM prototype:
+- `simple_b` TCP FSM prototype:
   - `config.json` stores TCP, SUMO, spawning, and controller settings.
   - `main.py` directly loads the JSON config and starts/stops all components.
   - `simulation.py` owns SUMO/TraCI, vehicle spawning, queue metrics, and traffic-light commands.
+  - `controller_fixed_cycle.py` owns the fixed-cycle controller FSM.
+  - `controller_max_pressure.py` owns the max-pressure auction FSM.
   - `controller_priority_pass.py` owns the Priority Pass auction FSM.
   - `connector.py` routes JSON-line TCP messages and mirrors traffic to the recorder.
   - `recorder.py` writes communication records to a text log.
@@ -63,7 +65,9 @@
 
 ### simple_b
 
-- `py_compile` passes for all five Python files using the available Anaconda Python.
+- `py_compile` passes for all `simple_b` controller/component Python files using the available
+  Anaconda Python.
+- `py_compile` passes for the added fixed-cycle and max-pressure controller files.
 - Component configuration loading succeeds without starting SUMO.
 - SUMO executable resolution was validated against the local Windows install path.
 - No dedicated automated test file exists yet for the TCP FSM prototype.

@@ -24,6 +24,8 @@ fedora_platform/
 │   ├── main.py                    - Configures and starts all simple_b components
 │   ├── config.json                 - Local TCP, SUMO, spawning, and controller config
 │   ├── simulation.py              - SUMO TraCI FSM and traffic-state publisher
+│   ├── controller_fixed_cycle.py  - Fixed-cycle controller FSM
+│   ├── controller_max_pressure.py - Max-pressure controller FSM
 │   ├── controller_priority_pass.py - Priority Pass controller FSM
 │   ├── connector.py               - TCP JSON-line message router FSM
 │   ├── recorder.py                - TCP communication logger FSM

@@ -83,6 +83,7 @@
     "random_seed": 42
   },
   "controller": {
+    "type": "priority_pass",
     "host": "127.0.0.1",
     "port": 51002,
     "connector": {
@@ -101,7 +102,36 @@
       "J33"
     ],
     "random_seed": 42,
-    "control": {
+    "fixed_cycle": {
+      "transition_duration": 3,
+      "phase_durations": [
+        29,
+        21,
+        29,
+        21
+      ],
+      "default_time_delay": 0,
+      "time_delays": {
+        "J25": 0,
+        "J26": 25,
+        "J27": 0,
+        "J28": 25,
+        "J29": 0,
+        "J30": 0,
+        "J31": 25,
+        "J32": 25,
+        "J33": 0
+      }
+    },
+    "max_pressure": {
+      "transition_duration": 3,
+      "bidding_strategy": "phase_queue_length",
+      "auction_winner": "highest_bid",
+      "min_green_duration": 3,
+      "max_green_duration": 60,
+      "auction_suspend_duration": 4
+    },
+    "priority_pass": {
       "transition_duration": 3,
       "bidding_strategy": "phase_queue_length",
       "auction_winner": "highest_bid",

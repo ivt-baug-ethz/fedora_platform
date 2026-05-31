@@ -139,14 +139,14 @@ STOPPED --> CONFIGURED: configure()
 ## simple_b TCP FSM Prototype Pattern
 
 The `simple_b` folder is intentionally separate from the reusable `src/fedora_platform`
-architecture. It is a compact, self-contained prototype with exactly five Python files and one
-class per file:
+architecture. It is a compact, self-contained prototype with one class per controller/component
+file:
 
 - `main.py` loads `config.json` and directly wires component lifecycle startup.
 - `Simulation` owns the TraCI connection, starts SUMO GUI, computes queue metrics, and applies
   traffic-light commands.
-- `PriorityPassController` owns the auction FSM and computes phase commands from simulation
-  messages.
+- `FixedCycleController`, `MaxPressureController`, and `PriorityPassController` own alternative
+  traffic-light control FSMs and compute phase commands from simulation messages.
 - `Connector` is the TCP JSON-line router and forwards all inter-component communication.
 - `Recorder` listens on TCP and writes routed communication to a text log.
 

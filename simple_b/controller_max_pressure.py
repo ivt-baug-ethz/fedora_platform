@@ -1,4 +1,4 @@
-"""Priority Pass controller FSM for the simplified simple_b system."""
+"""Max-pressure controller FSM for the simplified simple_b system."""
 
 from __future__ import annotations
 
@@ -10,8 +10,8 @@ import time
 from typing import Any
 
 
-class PriorityPassController:
-    """Receive traffic-state messages and send traffic-light phase commands."""
+class MaxPressureController:
+    """Choose the phase with the highest queue bid after min-green constraints."""
 
     NAME = "controller"
     STATE_CREATED = "created"
@@ -76,17 +76,15 @@ class PriorityPassController:
         self.stop_event = threading.Event()
         self.last_error: str | None = None
 
-    def configure(self) -> "PriorityPassController":
-        """Load endpoints and Priority Pass parameters, then enter CONFIGURED."""
+    def configure(self) -> "MaxPressureController":
+        """Load endpoints and max-pressure parameters, then enter CONFIGURED."""
         self._transition("configure")
         self.host = str(self.configuration.get("host", "127.0.0.1"))
         self.port = int(self.configuration["port"])
         connector = self.configuration["connector"]
         self.connector = (str(connector["host"]), int(connector["port"]))
         self.traffic_lights = list(self.configuration.get("traffic_lights", []))
-        self.control = dict(
-            self.configuration.get("priority_pass", self.configuration.get("control", {}))
-        )
+        self.control = dict(self.configuration.get("max_pressure", {}))
         self.random.seed(int(self.configuration.get("random_seed", 42)))
         self.light_states = {
             traffic_light: self._new_light_state()
@@ -121,14 +119,14 @@ class PriorityPassController:
     def _transition(self, event: str) -> None:
         next_state = self.TRANSITIONS.get(self.state, {}).get(event)
         if next_state is None:
-            raise RuntimeError(f"PriorityPassController cannot {event} from {self.state}")
+            raise RuntimeError(f"MaxPressureController cannot {event} from {self.state}")
         self.state = next_state
 
     def _auction_transition(self, light_state: dict[str, Any], event: str) -> None:
         current = str(light_state["auction_state"])
         next_state = self.AUCTION_TRANSITIONS.get(current, {}).get(event)
         if next_state is None:
-            raise RuntimeError(f"Priority Pass auction cannot {event} from {current}")
+            raise RuntimeError(f"Max-pressure auction cannot {event} from {current}")
         light_state["auction_state"] = next_state
 
     def _new_light_state(self) -> dict[str, Any]:
@@ -221,7 +219,7 @@ class PriorityPassController:
         metrics: dict[str, Any],
     ) -> None:
         light_state["current_phase_timer"] += 1
-        bids = self._get_priority_pass_bids(metrics)
+        bids = self._get_phase_bids(metrics)
         current_phase = int(light_state["phase"])
         if light_state["current_phase_timer"] > int(self.control["max_green_duration"]):
             bids[current_phase] = -10000.0
@@ -258,7 +256,7 @@ class PriorityPassController:
             return
         self._auction_transition(light_state, "auction_timer_done")
 
-    def _get_priority_pass_bids(self, metrics: dict[str, Any]) -> list[float]:
+    def _get_phase_bids(self, metrics: dict[str, Any]) -> list[float]:
         strategy = str(self.control.get("bidding_strategy", "phase_queue_length"))
         weighted_strategies = {
             "phase_weigthed_vehicle_position",
@@ -267,16 +265,10 @@ class PriorityPassController:
             "weighted_queue_length",
         }
         if strategy in weighted_strategies:
-            phase_bids = list(metrics.get("weighted_queue_lengths", []))
+            bids = list(metrics.get("weighted_queue_lengths", []))
         else:
-            phase_bids = list(metrics.get("queue_lengths", []))
-        upp_bids = list(metrics.get("upp_bids", [0.0 for _ in phase_bids]))
-        tau = float(self.control.get("trade_off", 0.0))
-        bids = []
-        for index, phase_bid in enumerate(phase_bids):
-            upp_bid = float(upp_bids[index]) if index < len(upp_bids) else 0.0
-            bids.append((1.0 - tau) * float(phase_bid) + tau * upp_bid)
-        return bids or [0.0]
+            bids = list(metrics.get("queue_lengths", []))
+        return [float(bid) for bid in bids] or [0.0]
 
     def _determine_auction_winner_phase(self, bids: list[float]) -> int:
         max_bid = max(bids)

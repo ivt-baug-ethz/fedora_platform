@@ -15,8 +15,10 @@
 
 ## Local TCP Messaging
 
-- `simple_b` uses localhost JSON-line TCP messages between `Simulation`,
-  `PriorityPassController`, `Connector`, and `Recorder`.
+- `simple_b` uses localhost JSON-line TCP messages between `Simulation`, the active controller,
+  `Connector`, and `Recorder`.
+- The active controller is selected with `controller.type` in `simple_b/config.json`; supported
+  values are `fixed_cycle`, `max_pressure`, and `priority_pass`.
 - Default ports are configured in `simple_b/main.py`:
   - Connector: `127.0.0.1:51000`
   - Simulation: `127.0.0.1:51001`
