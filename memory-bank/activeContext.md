@@ -1,40 +1,56 @@
 # Active Context
 
 ## Current Status
-Initial memory bank bootstrap — no active development task
+
+`simple_b` was simplified into a self-contained five-file TCP/SUMO Priority Pass prototype.
 
 ## Recent Changes
-- b0e603a chore: instructions for coding agents
-- f18602a Draft Version PriorityPass for Vienna Pilot
-- d5ecaf4 Initial commit
+
+- Replaced legacy `simple_b` script modules with:
+  - `main.py`
+  - `config.json`
+  - `simulation.py`
+  - `controller_priority_pass.py`
+  - `connector.py`
+  - `recorder.py`
+- Added explicit finite-state-machine states and transition maps to the simulation, controller,
+  connector, and recorder components.
+- Routed component communication through localhost TCP JSON-line messages managed by the connector.
+- Added SUMO executable auto-resolution for Spyder/Windows runs where `sumo-gui` is not on PATH.
+- Moved all launcher configuration from `main.py` into `simple_b/config.json`; `main.py` now
+  directly loads JSON and starts/stops components without a wrapper class.
+- Updated documentation files for structure, integrations, decisions, and scratchpad notes.
+- Added a gitignore pattern for generated `simple_b` recorder `.txt` logs.
 
 ## What Is Working
-- Core component model with finite-state lifecycle
-- Communication system with in-memory message bus
-- Storage system with memory, JSON, and SQLite backends
-- Priority Pass implementation for Vienna pilot
-- SUMO integration for simulation
-- Test suite with basic functionality testing
+
+- `simple_b` has exactly five Python files, each with one class.
+- `simple_b/config.json` owns local TCP, SUMO, demand, and controller settings.
+- The simulation component loads the restored SUMO JSON metadata from `sumo_simulation_files`.
+- Syntax compilation passes for all five `simple_b` Python files.
+- Simple configuration loading succeeds for all four FSM components.
+- `Simulation.configure()` resolves `sumo-gui` to the local SUMO install under `%LOCALAPPDATA%`.
+- Existing repository tests under `tests/` pass in the available Anaconda environment when pytest
+  plugin autoload is disabled.
 
 ## What Is Incomplete
-- Only Vienna pilot has a complete implementation
-- Other pilot directories (basque_country, nicosia, copenhagen, reggio_emilia, budapest) have no functional implementation 
-- No integration with real hardware or actual traffic lights
-- No web UI or dashboard components
+
+- The full SUMO GUI loop was not executed during this session after adding path resolution.
+- `pylint src/` still reports pre-existing lint issues in the existing `src/` codebase.
+- Python 3.13 is still not available through the Windows launcher on this machine.
 
 ## Known Issues
-- No functional implementations for the other pilot sites beyond Vienna
-- The platform is primarily designed as a simulation platform, not for real-world deployment
-- Limited testing for edge cases in the SUMO integration
+
+- The user's Anaconda Python is Python 3.11.5, not the repository's requested Python 3.13.
+- Default Anaconda pytest plugin discovery fails because an unrelated Dash/Jupyter plugin raises
+  before test collection.
 
 ## Next Logical Steps
-1. Implement pilot system for other pilot sites (Basque Country, Nicosia, etc.)
-2. Add integration with real traffic management systems
-3. Implement additional communication protocols beyond just in-memory messaging
-4. Extend storage capabilities with additional database backends
-5. Add web UI components for monitoring and control
+
+1. Run `python simple_b/main.py` in the local SUMO-capable environment to verify the live GUI loop.
+2. Tune `simple_b/config.json` for the desired flow, run length, and Priority Pass settings.
+3. If needed, split the FSMs into separate processes while keeping the same TCP message contract.
 
 ## Active Decisions Pending
-- The decision to prioritize Vienna pilot implementation over others has been made, but future work could expand to other pilots
-- The platform is designed for simulation, but there's potential to add real-world deployment capabilities
-- The scope of what constitutes a "complete" pilot implementation needs clarification
+
+- Whether `simple_b` should remain a threaded single-process demo or become a multi-process demo.

@@ -135,3 +135,20 @@ STOPPED --> CONFIGURED: configure()
 ### Strategy Pattern
 - Multiple storage implementations represent different strategies for data persistence
 - Communication templates represent different strategies for component-to-component communication
+
+## simple_b TCP FSM Prototype Pattern
+
+The `simple_b` folder is intentionally separate from the reusable `src/fedora_platform`
+architecture. It is a compact, self-contained prototype with exactly five Python files and one
+class per file:
+
+- `main.py` loads `config.json` and directly wires component lifecycle startup.
+- `Simulation` owns the TraCI connection, starts SUMO GUI, computes queue metrics, and applies
+  traffic-light commands.
+- `PriorityPassController` owns the auction FSM and computes phase commands from simulation
+  messages.
+- `Connector` is the TCP JSON-line router and forwards all inter-component communication.
+- `Recorder` listens on TCP and writes routed communication to a text log.
+
+All `simple_b` components use explicit state constants and transition maps. Runtime messages are
+JSON objects sent over localhost TCP, terminated by newlines.

@@ -1,0 +1,120 @@
+{
+  "connector": {
+    "host": "127.0.0.1",
+    "port": 51000,
+    "socket_timeout": 2.0,
+    "components": {
+      "simulation": {
+        "host": "127.0.0.1",
+        "port": 51001
+      },
+      "controller": {
+        "host": "127.0.0.1",
+        "port": 51002
+      },
+      "recorder": {
+        "host": "127.0.0.1",
+        "port": 51003
+      }
+    }
+  },
+  "simulation": {
+    "host": "127.0.0.1",
+    "port": 51001,
+    "connector": {
+      "host": "127.0.0.1",
+      "port": 51000
+    },
+    "sumo_binary": "sumo-gui",
+    "sumo_config_file": "sumo_simulation_files/Configuration.sumocfg",
+    "sumo_label": "simple_b_priority_pass",
+    "traffic_lights": [
+      "J25",
+      "J26",
+      "J27",
+      "J28",
+      "J29",
+      "J30",
+      "J31",
+      "J32",
+      "J33"
+    ],
+    "phase_bidder_lanes_file": "sumo_simulation_files/Phase_BidderLanes.json",
+    "route_probabilities_file": "sumo_simulation_files/Route_Probabilities.json",
+    "flow_per_entrance_per_hour": 50.0,
+    "spawn_horizon": 30000,
+    "max_steps": 5000,
+    "step_delay_seconds": 0.0,
+    "controller_response_timeout_seconds": 0.05,
+    "sensor_distance": 100.0,
+    "position_distance_to_intersection": [
+      10.0,
+      20.0,
+      30.0
+    ],
+    "position_weights": [
+      0.2,
+      0.3,
+      0.3,
+      0.2
+    ],
+    "vot_spawn_probabilities": {
+      "0": 0.7,
+      "1": 0.3
+    },
+    "vot_upp_spawn_probabilities": {
+      "0": 0.0,
+      "1": 1.0
+    },
+    "vehicle_colors": {
+      "priority_pass": [
+        30,
+        111,
+        192,
+        255
+      ],
+      "regular": [
+        110,
+        110,
+        110,
+        255
+      ]
+    },
+    "random_seed": 42
+  },
+  "controller": {
+    "host": "127.0.0.1",
+    "port": 51002,
+    "connector": {
+      "host": "127.0.0.1",
+      "port": 51000
+    },
+    "traffic_lights": [
+      "J25",
+      "J26",
+      "J27",
+      "J28",
+      "J29",
+      "J30",
+      "J31",
+      "J32",
+      "J33"
+    ],
+    "random_seed": 42,
+    "control": {
+      "transition_duration": 3,
+      "bidding_strategy": "phase_queue_length",
+      "auction_winner": "highest_bid",
+      "min_green_duration": 29,
+      "max_green_duration": 60,
+      "auction_suspend_duration": 21,
+      "trade_off": 0.6
+    }
+  },
+  "recorder": {
+    "host": "127.0.0.1",
+    "port": 51003,
+    "log_path": "sumo_simulation_files/logs/communication_log.txt"
+  },
+  "startup_pause_seconds": 0.2
+}
