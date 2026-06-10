@@ -52,6 +52,7 @@ class Recorder:
         self.state = self.STATE_CREATED
         self.host = "127.0.0.1"
         self.port = 0
+        self.log_type = "txt"
         self.log_path = Path("communication_log.txt")
         self.log_file: TextIO | None = None
         self.server_socket: socket.socket | None = None
@@ -65,6 +66,11 @@ class Recorder:
         self._transition("configure")
         self.host = str(self.configuration.get("host", "127.0.0.1"))
         self.port = int(self.configuration["port"])
+        self.log_type = str(self.configuration.get("log_type", "txt")).lower()
+        if self.log_type != "txt":
+            # TODO: Add additional recorder backends such as sqlite/mysql-style
+            # databases or structured JSONL sinks when needed.
+            raise ValueError(f"Unsupported recorder log_type: {self.log_type}")
         log_path = Path(str(self.configuration.get("log_path", "communication_log.txt")))
         if not log_path.is_absolute():
             log_path = Path(__file__).resolve().parent / log_path

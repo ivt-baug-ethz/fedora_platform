@@ -24,6 +24,14 @@ class Simulation:
     STATE_RUNNING = "running"
     STATE_STOPPED = "stopped"
     STATE_FAILED = "failed"
+    LANE_MEASUREMENT_QUEUE_LENGTHS = "queue_lengths"
+    LANE_MEASUREMENT_WEIGHTED_QUEUE_LENGTHS = "weighted_queue_lengths"
+    LANE_MEASUREMENT_UPP_BIDS = "upp_bids"
+    SUPPORTED_LANE_MEASUREMENTS = {
+        LANE_MEASUREMENT_QUEUE_LENGTHS,
+        LANE_MEASUREMENT_WEIGHTED_QUEUE_LENGTHS,
+        LANE_MEASUREMENT_UPP_BIDS,
+    }
 
     STATES = (
         STATE_CREATED,
@@ -62,7 +70,9 @@ class Simulation:
         self.sumo_config_file = self.base_path / "sumo_simulation_files" / "Configuration.sumocfg"
         self.sumo_label = "simple_b"
         self.traffic_lights: list[str] = []
-        self.phase_bidder_lanes: dict[str, dict[str, list[str]]] = {}
+        self.traci_spawning_active = True
+        self.pressure_lanes: dict[str, dict[str, list[str]]] = {}
+        self.enabled_lane_measurements: set[str] = set()
         self.route_probabilities: dict[str, dict[str, float]] = {}
         self.spawn_probabilities: dict[str, float] = {}
         self.vot_spawn_probabilities: dict[str, float] = {}
@@ -103,34 +113,41 @@ class Simulation:
         self.port = int(self.configuration["port"])
         connector = self.configuration["connector"]
         self.connector = (str(connector["host"]), int(connector["port"]))
+        sumo_details = dict(self.configuration.get("sumo_details", {}))
+        network = dict(self.configuration.get("network", {}))
+        demand = dict(self.configuration.get("demand", {}))
+        visualization = dict(self.configuration.get("visualization", {}))
+        measurement_details = self._measurement_details_config()
         self.sumo_binary = self._resolve_sumo_binary(
-            str(self.configuration.get("sumo_binary", "sumo-gui"))
+            str(sumo_details.get("sumo_binary", "sumo-gui"))
         )
-        self.sumo_config_file = self._resolve_path(str(self.configuration["sumo_config_file"]))
-        self.sumo_label = str(self.configuration.get("sumo_label", "simple_b"))
-        self.traffic_lights = list(self.configuration.get("traffic_lights", []))
-        self.phase_bidder_lanes = self._load_json_file("phase_bidder_lanes_file")
-        self.route_probabilities = self._load_json_file("route_probabilities_file")
-        self.spawn_probabilities = self._build_spawn_probabilities()
-        self.vot_spawn_probabilities = dict(self.configuration["vot_spawn_probabilities"])
-        self.vot_upp_spawn_probabilities = dict(self.configuration["vot_upp_spawn_probabilities"])
-        self.vehicle_colors = self._build_vehicle_colors()
-        self.sensor_distance = float(self.configuration.get("sensor_distance", 100.0))
+        self.sumo_config_file = self._resolve_path(str(sumo_details["sumo_config_file"]))
+        self.sumo_label = str(sumo_details.get("sumo_label", "simple_b"))
+        self.traffic_lights = list(network.get("traffic_lights", []))
+        self.traci_spawning_active = bool(demand.get("traci_spawning_active", True))
+        self.pressure_lanes = self._load_pressure_lanes()
+        self.enabled_lane_measurements = self._load_enabled_lane_measurements()
+        self.route_probabilities = self._load_json_file_from(demand, "route_probabilities_file")
+        self.spawn_probabilities = self._build_spawn_probabilities(demand)
+        self.vot_spawn_probabilities = dict(demand["vot_spawn_probabilities"])
+        self.vot_upp_spawn_probabilities = dict(demand["vot_upp_spawn_probabilities"])
+        self.vehicle_colors = self._build_vehicle_colors(visualization)
+        self.sensor_distance = float(measurement_details.get("sensor_distance", 100.0))
         self.position_distances = [
             float(value)
-            for value in self.configuration.get("position_distance_to_intersection", [])
+            for value in measurement_details.get("position_distance_to_intersection", [])
         ]
         self.position_weights = [
             float(value)
-            for value in self.configuration.get("position_weights", [1.0])
+            for value in measurement_details.get("position_weights", [1.0])
         ]
-        self.spawn_horizon = int(self.configuration.get("spawn_horizon", 0))
-        self.max_steps = int(self.configuration.get("max_steps", 0))
-        self.step_delay_seconds = float(self.configuration.get("step_delay_seconds", 0.0))
+        self.spawn_horizon = int(demand.get("spawn_horizon", 0))
+        self.max_steps = int(demand.get("max_steps", 0))
+        self.step_delay_seconds = float(demand.get("step_delay_seconds", 0.0))
         self.controller_response_timeout_seconds = float(
             self.configuration.get("controller_response_timeout_seconds", 0.05)
         )
-        self.random.seed(int(self.configuration.get("random_seed", 42)))
+        self.random.seed(int(sumo_details.get("random_seed", 42)))
         return self
 
     def start(self) -> None:
@@ -202,7 +219,9 @@ class Simulation:
         searched = "\n".join(str(candidate) for candidate in candidates)
         raise FileNotFoundError(
             f"Could not find SUMO executable '{binary_name}'. "
-            "Put SUMO on PATH, set SUMO_HOME, or set simulation.sumo_binary in config.json "
+            "Put SUMO on PATH, set SUMO_HOME, or set "
+            "simulation.sumo_details.sumo_binary "
+            "in config.json "
             f"to the executable path. Checked:\n{searched}"
         )
 
@@ -223,20 +242,71 @@ class Simulation:
             candidates.append(Path(program_files) / "Eclipse" / "Sumo" / "bin" / executable_name)
         return candidates
 
-    def _load_json_file(self, key: str) -> dict[str, Any]:
-        path = self._resolve_path(str(self.configuration[key]))
+    def _load_json_file_from(self, section: dict[str, Any], key: str) -> dict[str, Any]:
+        return self._load_json_path(str(section[key]))
+
+    def _load_pressure_lanes(self) -> dict[str, Any]:
+        try:
+            pressure_lanes = self._lane_measurements_config()["pressure_lanes"]
+        except KeyError as error:
+            raise KeyError(
+                "Missing setup.simulation_measurements.sumo."
+                "lane_measurements.pressure_lanes in config.json"
+            ) from error
+        return self._load_json_path(str(pressure_lanes))
+
+    def _load_enabled_lane_measurements(self) -> set[str]:
+        lane_measurements = self._lane_measurements_config()
+        enabled = {
+            str(measurement)
+            for measurement in lane_measurements.get("enabled", [])
+        }
+        unknown = enabled - self.SUPPORTED_LANE_MEASUREMENTS
+        if unknown:
+            supported = ", ".join(sorted(self.SUPPORTED_LANE_MEASUREMENTS))
+            unknown_values = ", ".join(sorted(unknown))
+            raise ValueError(
+                f"Unsupported lane measurements in config.json: {unknown_values}. "
+                f"Supported values: {supported}"
+            )
+        return enabled
+
+    def _lane_measurements_config(self) -> dict[str, Any]:
+        try:
+            return self.configuration["setup"]["simulation_measurements"]["sumo"][
+                "lane_measurements"
+            ]
+        except KeyError as error:
+            raise KeyError(
+                "Missing setup.simulation_measurements.sumo."
+                "lane_measurements in config.json"
+            ) from error
+
+    def _measurement_details_config(self) -> dict[str, Any]:
+        return dict(
+            self.configuration.get("setup", {})
+            .get("simulation_measurements", {})
+            .get("sumo", {})
+            .get("measurement_details", {})
+        )
+
+    def _load_json_path(self, json_path: str) -> dict[str, Any]:
+        path = self._resolve_path(json_path)
         with path.open("r", encoding="utf-8") as json_file:
             return json.load(json_file)
 
-    def _build_spawn_probabilities(self) -> dict[str, float]:
-        configured = self.configuration.get("spawn_probabilities")
+    def _build_spawn_probabilities(self, demand: dict[str, Any]) -> dict[str, float]:
+        configured = demand.get("spawn_probabilities")
         if configured:
             return {str(key): float(value) for key, value in configured.items()}
-        probability = float(self.configuration["flow_per_entrance_per_hour"]) / 3600.0
+        probability = float(demand["flow_per_entrance_per_hour"]) / 3600.0
         return {entrance: probability for entrance in self.route_probabilities}
 
-    def _build_vehicle_colors(self) -> dict[str, tuple[int, int, int, int]]:
-        colors = dict(self.configuration.get("vehicle_colors", {}))
+    def _build_vehicle_colors(
+        self,
+        visualization: dict[str, Any],
+    ) -> dict[str, tuple[int, int, int, int]]:
+        colors = dict(visualization.get("vehicle_colors", {}))
         return {
             name: tuple(int(channel) for channel in value)
             for name, value in colors.items()
@@ -336,13 +406,16 @@ class Simulation:
             return True
         if self.connection is None:
             return True
+        if not self.traci_spawning_active:
+            return self.max_steps == 0 and int(self.connection.vehicle.getIDCount()) == 0
         if self.time <= self.spawn_horizon:
             return False
         return int(self.connection.vehicle.getIDCount()) == 0
 
     def _run_step(self) -> None:
         assert self.connection is not None
-        self._spawn_vehicles()
+        if self.traci_spawning_active:
+            self._spawn_vehicles()
         self._crawl_step_traci_data()
         self._send_message("controller", "traffic_state", self._build_traffic_state())
         self.command_event.wait(self.controller_response_timeout_seconds)
@@ -405,18 +478,21 @@ class Simulation:
 
     def _build_traffic_light_metrics(self, traffic_light: str) -> dict[str, Any]:
         assert self.connection is not None
-        phase_lanes = self.phase_bidder_lanes[traffic_light]
-        queue_lengths = self._get_phase_queue_lengths(phase_lanes)
-        weighted_queue_lengths = self._get_phase_weighted_queue_lengths(phase_lanes)
-        upp_bids = self._get_phase_upp_bids(phase_lanes)
-        return {
+        phase_lanes = self.pressure_lanes[traffic_light]
+        metrics = {
             "number_phases": len(phase_lanes),
             "phase_signal": int(self.connection.trafficlight.getPhase(traffic_light)),
             "signal_state": self.connection.trafficlight.getRedYellowGreenState(traffic_light),
-            "queue_lengths": queue_lengths,
-            "weighted_queue_lengths": weighted_queue_lengths,
-            "upp_bids": upp_bids,
         }
+        if self.LANE_MEASUREMENT_QUEUE_LENGTHS in self.enabled_lane_measurements:
+            metrics["queue_lengths"] = self._get_phase_queue_lengths(phase_lanes)
+        if self.LANE_MEASUREMENT_WEIGHTED_QUEUE_LENGTHS in self.enabled_lane_measurements:
+            metrics["weighted_queue_lengths"] = self._get_phase_weighted_queue_lengths(
+                phase_lanes
+            )
+        if self.LANE_MEASUREMENT_UPP_BIDS in self.enabled_lane_measurements:
+            metrics["upp_bids"] = self._get_phase_upp_bids(phase_lanes)
+        return metrics
 
     def _get_phase_queue_lengths(self, phase_lanes: dict[str, list[str]]) -> list[float]:
         result = self._new_phase_result(phase_lanes)
