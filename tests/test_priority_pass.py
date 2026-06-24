@@ -4,7 +4,6 @@ import sys
 import unittest
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
 if str(SRC) not in sys.path:
@@ -34,7 +33,9 @@ class PriorityPassTests(unittest.TestCase):
         self.assertEqual(result["tl_control"]["J25"]["trade_off"], 0.25)
         self.assertEqual(result["tl_control"]["J25"]["min_green_duration"], 5)
 
-    def test_sumo_simulator_can_build_legacy_settings_without_running_sumo(self) -> None:
+    def test_sumo_simulator_can_build_legacy_settings_without_running_sumo(
+        self,
+    ) -> None:
         config = PriorityPassConfig(
             model_root=ROOT / "models" / "pilot_vienna",
             intersections=("J25", "J26"),
@@ -48,7 +49,7 @@ class PriorityPassTests(unittest.TestCase):
         simulator.configure({"tl_control": control["tl_control"]})
 
         self.assertEqual(set(simulator.settings.tl_control.keys()), {"J25", "J26"})
-        self.assertTrue(simulator.settings.sumo_config_file.endswith("Configuration.sumocfg"))
+        self.assertTrue(simulator.settings.sumo_config_file.endswith("config.sumocfg"))
         self.assertEqual(
             simulator.settings.spawn_entrances_probabilities["0"],
             config.flow_vehicles_per_hour / 60 / 60,

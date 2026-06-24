@@ -1,5 +1,7 @@
 # FEDORA Platform - Directory Structure
 
+# TODO - OUTDATED STRUCTURE - UPDATE BASED ON NEW STRUCTURE
+
 ```
 fedora_platform/
 ├── src/
@@ -30,19 +32,17 @@ fedora_platform/
 │   ├── connector.py               - TCP JSON-line message router FSM
 │   ├── recorder.py                - TCP communication logger FSM
 │   └── sumo_simulation_files/
-│       ├── Configuration.sumocfg  - SUMO configuration
-│       ├── Demand.xml             - SUMO route definitions
-│       ├── Network.net.xml        - SUMO network
-│       ├── PossibleTrips.xml      - Trip source data
-│       ├── Phase_BidderLanes.json - Per-phase incoming lane groups
-│       ├── Phase_ExitLanes.json   - Per-phase outgoing lane groups
-│       ├── Route_Distances.json   - Route distance metadata
-│       ├── Route_Durations.json   - Route minimum-duration metadata
-│       ├── Route_EndEdges.json    - Route completion edge metadata
-│       ├── Route_Probabilities.json - Spawn entrance route probabilities
-│       ├── Route_StartEdges.json  - Route start edge metadata
-│       └── logs/                  - Local runtime logs, ignored when generated as txt
-├── simple_a/                      - Experimental simplified prototype folder
+│       ├── config.sumocfg  - SUMO configuration
+│       ├── demand.xml             - SUMO route definitions
+│       ├── network.net.xml        - SUMO network
+│       ├── possible_trips.xml      - Trip source data
+│       ├── phase_bidder_lanes.json - Per-phase incoming lane groups
+│       ├── phase_exit_lanes.json   - Per-phase outgoing lane groups
+│       ├── route_distances.json   - Route distance metadata
+│       ├── route_durations.json   - Route minimum-duration metadata
+│       ├── route_end_edges.json    - Route completion edge metadata
+│       ├── route_probabilities.json - Spawn entrance route probabilities
+│       ├── route_start_edges.json  - Route start edge metadata
 ├── models/
 │   ├── pilot_vienna/              - SUMO network, demand, route, and phase files
 │   ├── pilot_basque_country/

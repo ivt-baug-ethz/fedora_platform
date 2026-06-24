@@ -10,6 +10,7 @@ pilot assets.
 
 ```text
 models/
+  demo/                  Example model for demonstration and testing
   pilot_vienna/
     sumo/                SUMO network, demand, route and phase files
   pilot_basque_country/  Reserved for freight logistics hub integration models

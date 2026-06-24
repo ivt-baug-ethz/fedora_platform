@@ -52,22 +52,26 @@ class Simulation:
             "stop": STATE_STOPPED,
             "fail": STATE_FAILED,
         },
-        STATE_READY: {"start": STATE_RUNNING, "stop": STATE_STOPPED, "fail": STATE_FAILED},
+        STATE_READY: {
+            "start": STATE_RUNNING,
+            "stop": STATE_STOPPED,
+            "fail": STATE_FAILED,
+        },
         STATE_RUNNING: {"stop": STATE_STOPPED, "fail": STATE_FAILED},
         STATE_STOPPED: {"configure": STATE_CONFIGURED, "fail": STATE_FAILED},
         STATE_FAILED: {"stop": STATE_STOPPED},
     }
 
-    def __init__(self, configuration: dict[str, Any]):
+    def __init__(self, configuration: dict[str, Any], scenario_path: Path) -> None:
         """Create the simulation in the CREATED state."""
         self.configuration = configuration
+        self.scenario_path = scenario_path
         self.state = self.STATE_CREATED
-        self.base_path = Path(__file__).resolve().parent
         self.host = "127.0.0.1"
         self.port = 0
         self.connector = ("127.0.0.1", 0)
         self.sumo_binary = "sumo-gui"
-        self.sumo_config_file = self.base_path / "sumo_simulation_files" / "Configuration.sumocfg"
+        self.sumo_config_file = self.scenario_path / "config.sumocfg"
         self.sumo_label = "simple_b"
         self.traffic_lights: list[str] = []
         self.traci_spawning_active = True
@@ -121,13 +125,17 @@ class Simulation:
         self.sumo_binary = self._resolve_sumo_binary(
             str(sumo_details.get("sumo_binary", "sumo-gui"))
         )
-        self.sumo_config_file = self._resolve_path(str(sumo_details["sumo_config_file"]))
+        self.sumo_config_file = self._resolve_path(
+            str(sumo_details["sumo_config_file"])
+        )
         self.sumo_label = str(sumo_details.get("sumo_label", "simple_b"))
         self.traffic_lights = list(network.get("traffic_lights", []))
         self.traci_spawning_active = bool(demand.get("traci_spawning_active", True))
         self.pressure_lanes = self._load_pressure_lanes()
         self.enabled_lane_measurements = self._load_enabled_lane_measurements()
-        self.route_probabilities = self._load_json_file_from(demand, "route_probabilities_file")
+        self.route_probabilities = self._load_json_file_from(
+            demand, "route_probabilities_file"
+        )
         self.spawn_probabilities = self._build_spawn_probabilities(demand)
         self.vot_spawn_probabilities = dict(demand["vot_spawn_probabilities"])
         self.vot_upp_spawn_probabilities = dict(demand["vot_upp_spawn_probabilities"])
@@ -135,11 +143,12 @@ class Simulation:
         self.sensor_distance = float(measurement_details.get("sensor_distance", 100.0))
         self.position_distances = [
             float(value)
-            for value in measurement_details.get("position_distance_to_intersection", [])
+            for value in measurement_details.get(
+                "position_distance_to_intersection", []
+            )
         ]
         self.position_weights = [
-            float(value)
-            for value in measurement_details.get("position_weights", [1.0])
+            float(value) for value in measurement_details.get("position_weights", [1.0])
         ]
         self.spawn_horizon = int(demand.get("spawn_horizon", 0))
         self.max_steps = int(demand.get("max_steps", 0))
@@ -201,7 +210,7 @@ class Simulation:
         path = Path(path_value)
         if path.is_absolute():
             return path
-        return self.base_path / path
+        return self.scenario_path / path
 
     def _resolve_sumo_binary(self, binary_name: str) -> str:
         configured_path = Path(binary_name)
@@ -239,7 +248,9 @@ class Simulation:
             candidates.append(local_path / "sumo-1.19.0" / "bin" / executable_name)
         program_files = os.environ.get("ProgramFiles")
         if program_files:
-            candidates.append(Path(program_files) / "Eclipse" / "Sumo" / "bin" / executable_name)
+            candidates.append(
+                Path(program_files) / "Eclipse" / "Sumo" / "bin" / executable_name
+            )
         return candidates
 
     def _load_json_file_from(self, section: dict[str, Any], key: str) -> dict[str, Any]:
@@ -258,8 +269,7 @@ class Simulation:
     def _load_enabled_lane_measurements(self) -> set[str]:
         lane_measurements = self._lane_measurements_config()
         enabled = {
-            str(measurement)
-            for measurement in lane_measurements.get("enabled", [])
+            str(measurement) for measurement in lane_measurements.get("enabled", [])
         }
         unknown = enabled - self.SUPPORTED_LANE_MEASUREMENTS
         if unknown:
@@ -328,7 +338,9 @@ class Simulation:
                 client, _address = self.server_socket.accept()
             except OSError:
                 break
-            thread = threading.Thread(target=self._handle_client, args=(client,), daemon=True)
+            thread = threading.Thread(
+                target=self._handle_client, args=(client,), daemon=True
+            )
             thread.start()
 
     def _handle_client(self, client: socket.socket) -> None:
@@ -376,7 +388,9 @@ class Simulation:
         traci.start(command, label=self.sumo_label)
         self.connection = traci.getConnection(self.sumo_label)
         self._crawl_initial_traci_data()
-        self._send_message("controller", "simulation_started", {"label": self.sumo_label})
+        self._send_message(
+            "controller", "simulation_started", {"label": self.sumo_label}
+        )
 
     def _crawl_initial_traci_data(self) -> None:
         assert self.connection is not None
@@ -407,7 +421,9 @@ class Simulation:
         if self.connection is None:
             return True
         if not self.traci_spawning_active:
-            return self.max_steps == 0 and int(self.connection.vehicle.getIDCount()) == 0
+            return (
+                self.max_steps == 0 and int(self.connection.vehicle.getIDCount()) == 0
+            )
         if self.time <= self.spawn_horizon:
             return False
         return int(self.connection.vehicle.getIDCount()) == 0
@@ -441,7 +457,9 @@ class Simulation:
             self.connection.vehicle.add(vehicle_id, route)
             color_key = "priority_pass" if upp else "regular"
             if color_key in self.vehicle_colors:
-                self.connection.vehicle.setColor(vehicle_id, self.vehicle_colors[color_key])
+                self.connection.vehicle.setColor(
+                    vehicle_id, self.vehicle_colors[color_key]
+                )
 
     def _weighted_choice(self, weights_by_item: dict[str, float]) -> str:
         total_weight = sum(float(weight) for weight in weights_by_item.values())
@@ -482,11 +500,16 @@ class Simulation:
         metrics = {
             "number_phases": len(phase_lanes),
             "phase_signal": int(self.connection.trafficlight.getPhase(traffic_light)),
-            "signal_state": self.connection.trafficlight.getRedYellowGreenState(traffic_light),
+            "signal_state": self.connection.trafficlight.getRedYellowGreenState(
+                traffic_light
+            ),
         }
         if self.LANE_MEASUREMENT_QUEUE_LENGTHS in self.enabled_lane_measurements:
             metrics["queue_lengths"] = self._get_phase_queue_lengths(phase_lanes)
-        if self.LANE_MEASUREMENT_WEIGHTED_QUEUE_LENGTHS in self.enabled_lane_measurements:
+        if (
+            self.LANE_MEASUREMENT_WEIGHTED_QUEUE_LENGTHS
+            in self.enabled_lane_measurements
+        ):
             metrics["weighted_queue_lengths"] = self._get_phase_weighted_queue_lengths(
                 phase_lanes
             )
@@ -494,7 +517,9 @@ class Simulation:
             metrics["upp_bids"] = self._get_phase_upp_bids(phase_lanes)
         return metrics
 
-    def _get_phase_queue_lengths(self, phase_lanes: dict[str, list[str]]) -> list[float]:
+    def _get_phase_queue_lengths(
+        self, phase_lanes: dict[str, list[str]]
+    ) -> list[float]:
         result = self._new_phase_result(phase_lanes)
         for vehicle_id in self.vehicle_ids:
             phase = self._get_vehicle_phase(vehicle_id, phase_lanes)
@@ -502,7 +527,9 @@ class Simulation:
                 result[phase] += 1.0
         return result
 
-    def _get_phase_weighted_queue_lengths(self, phase_lanes: dict[str, list[str]]) -> list[float]:
+    def _get_phase_weighted_queue_lengths(
+        self, phase_lanes: dict[str, list[str]]
+    ) -> list[float]:
         result = self._new_phase_result(phase_lanes)
         for vehicle_id in self.vehicle_ids:
             phase = self._get_vehicle_phase(vehicle_id, phase_lanes)
@@ -569,6 +596,8 @@ class Simulation:
         }
         try:
             with socket.create_connection(self.connector, timeout=2.0) as connection:
-                connection.sendall(json.dumps(message, sort_keys=True).encode("utf-8") + b"\n")
+                connection.sendall(
+                    json.dumps(message, sort_keys=True).encode("utf-8") + b"\n"
+                )
         except OSError as error:
             self.last_error = str(error)

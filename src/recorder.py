@@ -1,7 +1,6 @@
-"""Recorder FSM that stores routed simple_b communication in a text log."""
-
 from __future__ import annotations
 
+import os
 import json
 import socket
 import threading
@@ -40,7 +39,11 @@ class Recorder:
             "stop": STATE_STOPPED,
             "fail": STATE_FAILED,
         },
-        STATE_READY: {"start": STATE_RUNNING, "stop": STATE_STOPPED, "fail": STATE_FAILED},
+        STATE_READY: {
+            "start": STATE_RUNNING,
+            "stop": STATE_STOPPED,
+            "fail": STATE_FAILED,
+        },
         STATE_RUNNING: {"stop": STATE_STOPPED, "fail": STATE_FAILED},
         STATE_STOPPED: {"configure": STATE_CONFIGURED, "fail": STATE_FAILED},
         STATE_FAILED: {"stop": STATE_STOPPED},
@@ -53,7 +56,6 @@ class Recorder:
         self.host = "127.0.0.1"
         self.port = 0
         self.log_type = "txt"
-        self.log_path = Path("communication_log.txt")
         self.log_file: TextIO | None = None
         self.server_socket: socket.socket | None = None
         self.server_thread: threading.Thread | None = None
@@ -71,10 +73,19 @@ class Recorder:
             # TODO: Add additional recorder backends such as sqlite/mysql-style
             # databases or structured JSONL sinks when needed.
             raise ValueError(f"Unsupported recorder log_type: {self.log_type}")
-        log_path = Path(str(self.configuration.get("log_path", "communication_log.txt")))
-        if not log_path.is_absolute():
-            log_path = Path(__file__).resolve().parent / log_path
-        self.log_path = log_path
+
+        # load the logs directory from the configuration
+        logs_dir_raw = self.configuration.get("logs_dir")
+        if logs_dir_raw is None:
+            raise ValueError("Recorder configuration must include a 'logs_dir' key.")
+
+        # create the logs directory if it doesn't exist
+        os.makedirs(logs_dir_raw, exist_ok=True)
+        self.logs_dir = Path(logs_dir_raw)
+
+        # set communication log path based on the logs_dir
+        self.log_path = self.logs_dir / "communication_log.txt"
+
         return self
 
     def start(self) -> None:
@@ -82,7 +93,6 @@ class Recorder:
         if self.state == self.STATE_CREATED:
             self.configure()
         if self.state == self.STATE_CONFIGURED:
-            self.log_path.parent.mkdir(parents=True, exist_ok=True)
             self.log_file = self.log_path.open("a", encoding="utf-8")
             self._open_server()
             self._transition("prepare")
@@ -127,7 +137,9 @@ class Recorder:
                 client, _address = self.server_socket.accept()
             except OSError:
                 break
-            thread = threading.Thread(target=self._handle_client, args=(client,), daemon=True)
+            thread = threading.Thread(
+                target=self._handle_client, args=(client,), daemon=True
+            )
             thread.start()
 
     def _handle_client(self, client: socket.socket) -> None:

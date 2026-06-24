@@ -225,5 +225,5 @@ __marimo__/
 # LLMs
 docs/scratchpad.md
 
-# simple_b runtime logs
-simple_b/sumo_simulation_files/logs/*.txt
+# runtime logs
+logs/
