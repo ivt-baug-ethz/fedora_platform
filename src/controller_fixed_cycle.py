@@ -43,7 +43,11 @@ class FixedCycleController:
             "stop": STATE_STOPPED,
             "fail": STATE_FAILED,
         },
-        STATE_READY: {"start": STATE_RUNNING, "stop": STATE_STOPPED, "fail": STATE_FAILED},
+        STATE_READY: {
+            "start": STATE_RUNNING,
+            "stop": STATE_STOPPED,
+            "fail": STATE_FAILED,
+        },
         STATE_RUNNING: {"stop": STATE_STOPPED, "fail": STATE_FAILED},
         STATE_STOPPED: {"configure": STATE_CONFIGURED, "fail": STATE_FAILED},
         STATE_FAILED: {"stop": STATE_STOPPED},
@@ -123,7 +127,9 @@ class FixedCycleController:
 
     def _new_light_state(self, traffic_light: str) -> dict[str, Any]:
         time_delays = dict(self.control.get("time_delays", {}))
-        delay = int(time_delays.get(traffic_light, self.control.get("default_time_delay", 0)))
+        delay = int(
+            time_delays.get(traffic_light, self.control.get("default_time_delay", 0))
+        )
         return {
             "cycle_state": self.CYCLE_DELAY if delay > 0 else self.CYCLE_GREEN,
             "phase": 0,
@@ -147,7 +153,9 @@ class FixedCycleController:
                 client, _address = self.server_socket.accept()
             except OSError:
                 break
-            thread = threading.Thread(target=self._handle_client, args=(client,), daemon=True)
+            thread = threading.Thread(
+                target=self._handle_client, args=(client,), daemon=True
+            )
             thread.start()
 
     def _handle_client(self, client: socket.socket) -> None:
@@ -223,6 +231,8 @@ class FixedCycleController:
         }
         try:
             with socket.create_connection(self.connector, timeout=2.0) as connection:
-                connection.sendall(json.dumps(message, sort_keys=True).encode("utf-8") + b"\n")
+                connection.sendall(
+                    json.dumps(message, sort_keys=True).encode("utf-8") + b"\n"
+                )
         except OSError as error:
             self.last_error = str(error)

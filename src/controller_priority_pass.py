@@ -45,7 +45,11 @@ class PriorityPassController:
             "stop": STATE_STOPPED,
             "fail": STATE_FAILED,
         },
-        STATE_READY: {"start": STATE_RUNNING, "stop": STATE_STOPPED, "fail": STATE_FAILED},
+        STATE_READY: {
+            "start": STATE_RUNNING,
+            "stop": STATE_STOPPED,
+            "fail": STATE_FAILED,
+        },
         STATE_RUNNING: {"stop": STATE_STOPPED, "fail": STATE_FAILED},
         STATE_STOPPED: {"configure": STATE_CONFIGURED, "fail": STATE_FAILED},
         STATE_FAILED: {"stop": STATE_STOPPED},
@@ -85,7 +89,9 @@ class PriorityPassController:
         self.connector = (str(connector["host"]), int(connector["port"]))
         self.traffic_lights = list(self.configuration.get("traffic_lights", []))
         self.control = dict(
-            self.configuration.get("priority_pass", self.configuration.get("control", {}))
+            self.configuration.get(
+                "priority_pass", self.configuration.get("control", {})
+            )
         )
         self.random.seed(int(self.configuration.get("random_seed", 42)))
         self.light_states = {
@@ -121,7 +127,9 @@ class PriorityPassController:
     def _transition(self, event: str) -> None:
         next_state = self.TRANSITIONS.get(self.state, {}).get(event)
         if next_state is None:
-            raise RuntimeError(f"PriorityPassController cannot {event} from {self.state}")
+            raise RuntimeError(
+                f"PriorityPassController cannot {event} from {self.state}"
+            )
         self.state = next_state
 
     def _auction_transition(self, light_state: dict[str, Any], event: str) -> None:
@@ -157,7 +165,9 @@ class PriorityPassController:
                 client, _address = self.server_socket.accept()
             except OSError:
                 break
-            thread = threading.Thread(target=self._handle_client, args=(client,), daemon=True)
+            thread = threading.Thread(
+                target=self._handle_client, args=(client,), daemon=True
+            )
             thread.start()
 
     def _handle_client(self, client: socket.socket) -> None:
@@ -202,7 +212,9 @@ class PriorityPassController:
         return commands
 
     def _step_light(self, light_state: dict[str, Any], metrics: dict[str, Any]) -> int:
-        number_phases = max(1, int(metrics.get("number_phases", light_state["number_phases"])))
+        number_phases = max(
+            1, int(metrics.get("number_phases", light_state["number_phases"]))
+        )
         light_state["number_phases"] = number_phases
         auction_state = light_state["auction_state"]
         if auction_state == self.AUCTION_READY:
@@ -293,6 +305,8 @@ class PriorityPassController:
         }
         try:
             with socket.create_connection(self.connector, timeout=2.0) as connection:
-                connection.sendall(json.dumps(message, sort_keys=True).encode("utf-8") + b"\n")
+                connection.sendall(
+                    json.dumps(message, sort_keys=True).encode("utf-8") + b"\n"
+                )
         except OSError as error:
             self.last_error = str(error)

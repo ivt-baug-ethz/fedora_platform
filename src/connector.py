@@ -39,7 +39,11 @@ class Connector:
             "stop": STATE_STOPPED,
             "fail": STATE_FAILED,
         },
-        STATE_READY: {"start": STATE_RUNNING, "stop": STATE_STOPPED, "fail": STATE_FAILED},
+        STATE_READY: {
+            "start": STATE_RUNNING,
+            "stop": STATE_STOPPED,
+            "fail": STATE_FAILED,
+        },
         STATE_RUNNING: {"stop": STATE_STOPPED, "fail": STATE_FAILED},
         STATE_STOPPED: {"configure": STATE_CONFIGURED, "fail": STATE_FAILED},
         STATE_FAILED: {"stop": STATE_STOPPED},
@@ -117,7 +121,9 @@ class Connector:
                 client, _address = self.server_socket.accept()
             except OSError:
                 break
-            thread = threading.Thread(target=self._handle_client, args=(client,), daemon=True)
+            thread = threading.Thread(
+                target=self._handle_client, args=(client,), daemon=True
+            )
             thread.start()
 
     def _handle_client(self, client: socket.socket) -> None:
@@ -163,7 +169,9 @@ class Connector:
         if endpoint is None:
             return
         try:
-            with socket.create_connection(endpoint, timeout=self.socket_timeout) as connection:
+            with socket.create_connection(
+                endpoint, timeout=self.socket_timeout
+            ) as connection:
                 encoded = json.dumps(message, sort_keys=True).encode("utf-8")
                 connection.sendall(encoded + b"\n")
         except OSError as error:

@@ -5,7 +5,6 @@ import unittest
 from uuid import uuid4
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
 if str(SRC) not in sys.path:
@@ -59,7 +58,9 @@ class CoreTests(unittest.TestCase):
         self.assertEqual(len(messages), 1)
         self.assertEqual(messages[0].payload["seen"], 7)
 
-    def test_templates_include_requested_communication_and_storage_options(self) -> None:
+    def test_templates_include_requested_communication_and_storage_options(
+        self,
+    ) -> None:
         communication_templates = available_communication_templates()
         storage_templates = available_storage_templates()
 
