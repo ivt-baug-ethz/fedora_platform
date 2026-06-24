@@ -71,7 +71,7 @@ class Simulation:
         self.port = 0
         self.connector = ("127.0.0.1", 0)
         self.sumo_binary = "sumo-gui"
-        self.sumo_config_file = self.scenario_path / "Configuration.sumocfg"
+        self.sumo_config_file = self.scenario_path / "config.sumocfg"
         self.sumo_label = "simple_b"
         self.traffic_lights: list[str] = []
         self.traci_spawning_active = True

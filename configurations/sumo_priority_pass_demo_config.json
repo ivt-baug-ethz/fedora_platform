@@ -14,7 +14,7 @@
     "simulation_measurements": {
       "sumo": {
         "lane_measurements": {
-          "pressure_lanes": "Phase_BidderLanes.json",
+          "pressure_lanes": "phase_bidder_lanes.json",
           "enabled": ["queue_lengths", "upp_bids"]
         },
         "measurement_details": {
@@ -43,7 +43,7 @@
   "simulation": {
     "demand": {
       "traci_spawning_active": true,
-      "route_probabilities_file": "Route_Probabilities.json",
+      "route_probabilities_file": "route_probabilities.json",
       "flow_per_entrance_per_hour": 50.0,
       "spawn_horizon": 30000,
       "max_steps": 5000,
@@ -65,7 +65,7 @@
     },
     "sumo_details": {
       "sumo_binary": "sumo-gui",
-      "sumo_config_file": "Configuration.sumocfg",
+      "sumo_config_file": "config.sumocfg",
       "sumo_label": "simple_b_priority_pass"
     }
   },

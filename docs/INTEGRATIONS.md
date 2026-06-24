@@ -9,7 +9,7 @@
 - On Windows/Spyder, `simple_b/simulation.py` now resolves `sumo-gui` from PATH, `SUMO_HOME`, and
   common local installs such as `%LOCALAPPDATA%\sumo-1.19.0\bin\sumo-gui.exe`.
 - The SUMO configuration is loaded from
-  `simple_b/sumo_simulation_files/Configuration.sumocfg`.
+  `simple_b/sumo_simulation_files/config.sumocfg`.
 - Runtime route and phase metadata is loaded from the JSON files in
   `simple_b/sumo_simulation_files/`.
 

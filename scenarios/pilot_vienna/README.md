@@ -6,11 +6,11 @@ Pass/SUMO prototype. Runtime Python code lives in `src/fedora_platform/`.
 ```text
 pilot_vienna/
   sumo/
-    Configuration.sumocfg
-    Network.net.xml
-    Demand.xml
-    Phase_BidderLanes.json
-    Phase_ExitLanes.json
+    config.sumocfg
+    network.net.xml
+    demand.xml
+    phase_bidder_lanes.json
+    phase_exit_lanes.json
     Route_*.json
 ```
 
