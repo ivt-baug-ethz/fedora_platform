@@ -52,16 +52,16 @@ def build_connector_configuration(communication: dict) -> dict:
     }
 
 
-def load_configuration() -> dict:
-    """Load the complete simple_b JSON configuration."""
-    config_path = Path(__file__).resolve().parent / "config.json"
-    with config_path.open("r", encoding="utf-8") as config_file:
-        return json.load(config_file)
-
-
 def main() -> None:
-    """Create all FSMs from config and run the simple_b system."""
-    config = load_configuration()
+    # TODO: add headless option through CLI
+    # TODO: add visualization option through CLI
+
+    # load the configuration file
+    # TODO: replace this through CLI argument
+    config_file = "configurations/sumo_priority_pass_demo_config.json"
+    with Path(config_file).open("r", encoding="utf-8") as config_file:
+        config = json.load(config_file)
+
     communication = dict(config["communication"])
     setup = dict(config.get("setup", {}))
     random_seed = int(setup.get("random_seed", 42))
@@ -100,7 +100,9 @@ def main() -> None:
         simulation_configuration["sumo_details"]
     )
     simulation_configuration["sumo_details"]["random_seed"] = random_seed
-    simulation = Simulation(simulation_configuration)
+    simulation = Simulation(
+        simulation_configuration, scenario_path=Path(config["scenario_path"])
+    )
     components = [recorder, controller, connector, simulation]
     startup_pause_seconds = float(setup.get("startup_pause_seconds", 0.2))
 

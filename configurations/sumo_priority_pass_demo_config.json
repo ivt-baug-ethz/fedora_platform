@@ -1,4 +1,5 @@
 {
+  "scenario_path": "scenarios/demo/sumo",
   "communication": {
     "host": "127.0.0.1",
     "ports": {
@@ -13,11 +14,8 @@
     "simulation_measurements": {
       "sumo": {
         "lane_measurements": {
-          "pressure_lanes": "sumo_simulation_files/Phase_BidderLanes.json",
-          "enabled": [
-            "queue_lengths",
-            "upp_bids"
-          ]
+          "pressure_lanes": "Phase_BidderLanes.json",
+          "enabled": ["queue_lengths", "upp_bids"]
         },
         "measurement_details": {
           "sensor_distance": 100.0
@@ -45,7 +43,7 @@
   "simulation": {
     "demand": {
       "traci_spawning_active": true,
-      "route_probabilities_file": "sumo_simulation_files/Route_Probabilities.json",
+      "route_probabilities_file": "Route_Probabilities.json",
       "flow_per_entrance_per_hour": 50.0,
       "spawn_horizon": 30000,
       "max_steps": 5000,
@@ -61,23 +59,13 @@
     },
     "visualization": {
       "vehicle_colors": {
-        "priority_pass": [
-          30,
-          111,
-          192,
-          255
-        ],
-        "regular": [
-          110,
-          110,
-          110,
-          255
-        ]
+        "priority_pass": [30, 111, 192, 255],
+        "regular": [110, 110, 110, 255]
       }
     },
     "sumo_details": {
       "sumo_binary": "sumo-gui",
-      "sumo_config_file": "sumo_simulation_files/Configuration.sumocfg",
+      "sumo_config_file": "Configuration.sumocfg",
       "sumo_label": "simple_b_priority_pass"
     }
   },
@@ -85,12 +73,7 @@
     "type": "priority_pass",
     "fixed_cycle": {
       "transition_duration": 3,
-      "phase_durations": [
-        29,
-        21,
-        29,
-        21
-      ],
+      "phase_durations": [29, 21, 29, 21],
       "default_time_delay": 0,
       "time_delays": {
         "J25": 0,
@@ -123,7 +106,7 @@
     }
   },
   "recorder": {
-    "log_path": "sumo_simulation_files/logs/communication_log.txt",
+    "logs_dir": "logs/sumo_priority_pass",
     "log_type": "txt"
   }
 }
