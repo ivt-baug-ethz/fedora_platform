@@ -13,12 +13,12 @@
   </defs>
   <rect width="1200" height="280" rx="0" fill="url(#bg)"/>
   <rect width="1200" height="280" fill="url(#grid)"/>
-  <path d="M70 210 C190 120 270 245 390 155 S590 105 710 165 920 215 1130 80" fill="none" stroke="#ffffff" stroke-opacity="0.42" stroke-width="10" stroke-linecap="round"/>
+  <!-- <path d="M70 210 C190 120 270 245 390 155 S590 105 710 165 920 215 1130 80" fill="none" stroke="#ffffff" stroke-opacity="0.42" stroke-width="10" stroke-linecap="round"/>
   <circle cx="205" cy="146" r="12" fill="#ffffff"/>
   <circle cx="512" cy="124" r="12" fill="#ffffff"/>
   <circle cx="810" cy="183" r="12" fill="#ffffff"/>
-  <circle cx="1030" cy="118" r="12" fill="#ffffff"/>
-  <text x="74" y="112" fill="#ffffff" font-family="Segoe UI, Arial, sans-serif" font-size="72" font-weight="700" letter-spacing="0">FEDORA</text>
-  <text x="78" y="158" fill="#ffffff" font-family="Segoe UI, Arial, sans-serif" font-size="28" font-weight="500" letter-spacing="0">Federated multimodal traffic management platform</text>
-  <text x="78" y="202" fill="#ffffff" fill-opacity="0.88" font-family="Segoe UI, Arial, sans-serif" font-size="20" letter-spacing="0">MTM Spaces | optimisation modules | simulators | pilots | data and communication templates</text>
+  <circle cx="1030" cy="118" r="12" fill="#ffffff"/> -->
+  <text x="74" y="140" fill="#ffffff" font-family="Segoe UI, Arial, sans-serif" font-size="72" font-weight="700" letter-spacing="0">FEDORA</text>
+  <!-- <text x="78" y="158" fill="#ffffff" font-family="Segoe UI, Arial, sans-serif" font-size="28" font-weight="500" letter-spacing="0">Federated multimodal traffic management platform</text> -->
+  <text x="78" y="185" fill="#ffffff" fill-opacity="0.88" font-family="Segoe UI, Arial, sans-serif" font-size="20" letter-spacing="0">MTM spaces | optimisation modules | controllers | simulators | pilots | data spaces</text>
 </svg>

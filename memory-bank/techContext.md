@@ -31,13 +31,23 @@ Testing framework used for running unit tests in the test suite
 - The `SUMO_HOME` environment variable must be set
 - Verification: `sumo --version` should display the installed version
 
-## Running Examples
+## Running Scenarios
 
-### Priority Pass Example
-To run the Priority Pass example:
+### Default Scenario (Demo with Priority Pass)
+To run the demo scenario:
 1. Ensure SUMO is installed and available in PATH
-2. Run: `python example/run_priority_pass.py --run`
-3. Expected output: JSON-formatted simulation results including traffic metrics and performance data
+2. Ensure virtual environment is activated: `source venv/bin/activate`
+3. Run: `python run.py`
+4. Configuration is loaded from `configurations/sumo_priority_pass_demo_config.json`
+5. SUMO simulation files are loaded from `scenarios/demo/sumo/`
+6. Output logs are written to `logs/` directory
+
+### Selecting Different Controllers
+The `configurations/sumo_priority_pass_demo_config.json` file contains a `controller.type` field
+that can be set to:
+- `"fixed_cycle"` — Uses FixedCycleController
+- `"max_pressure"` — Uses MaxPressureController  
+- `"priority_pass"` — Uses PriorityPassController (default)
 
 ## Test Suite
 Tests are run with:

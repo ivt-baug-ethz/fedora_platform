@@ -1,0 +1,88 @@
+{
+  "scenario_path": "scenarios/pilot_vienna/sumo",
+  "communication": {
+    "host": "127.0.0.1",
+    "ports": {
+      "connector": 51000,
+      "simulation": 51001,
+      "controller": 51002,
+      "recorder": 51003
+    },
+    "socket_timeout": 2.0
+  },
+  "setup": {
+    "simulation_measurements": {
+      "sumo": {
+        "lane_measurements": {
+          "pressure_lanes": "phase_bidder_lanes.json",
+          "enabled": ["queue_lengths", "upp_bids"]
+        },
+        "measurement_details": {
+          "sensor_distance": 100.0
+        },
+        "road_measurements": {},
+        "sensor_measurements": {},
+        "vehicle_measurements": {}
+      }
+    },
+    "startup_pause_seconds": 0.2,
+    "random_seed": 42,
+    "traffic_lights": [
+      "J25",
+      "J26",
+      "J27",
+      "J28",
+      "J29",
+      "J30",
+      "J31",
+      "J32",
+      "J33"
+    ],
+    "controller_response_timeout_seconds": 0.05
+  },
+  "simulation": {
+    "demand": {
+      "traci_spawning_active": true,
+      "route_probabilities_file": "route_probabilities.json",
+      "flow_per_entrance_per_hour": 50.0,
+      "spawn_horizon": 30000,
+      "max_steps": 5000,
+      "step_delay_seconds": 0.0,
+      "vot_spawn_probabilities": {
+        "0": 0.7,
+        "1": 0.3
+      },
+      "vot_upp_spawn_probabilities": {
+        "0": 0.0,
+        "1": 1.0
+      }
+    },
+    "visualization": {
+      "vehicle_colors": {
+        "priority_pass": [30, 111, 192, 255],
+        "regular": [110, 110, 110, 255]
+      }
+    },
+    "sumo_details": {
+      "sumo_binary": "sumo-gui",
+      "sumo_config_file": "config.sumocfg",
+      "sumo_label": "vienna_priority_pass"
+    }
+  },
+  "controller": {
+    "type": "priority_pass",
+    "priority_pass": {
+      "transition_duration": 3,
+      "bidding_strategy": "phase_queue_length",
+      "auction_winner": "highest_bid",
+      "min_green_duration": 29,
+      "max_green_duration": 60,
+      "auction_suspend_duration": 21,
+      "trade_off": 0.6
+    }
+  },
+  "recorder": {
+    "logs_dir": "logs/vienna_priority_pass",
+    "log_type": "txt"
+  }
+}

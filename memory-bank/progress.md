@@ -1,32 +1,38 @@
 # Progress
 
-## Implemented and Working
+## Implemented and Working (Post-Reorganization)
 
-- Core component model with component lifecycle management.
-- Communication system with message bus pattern.
-- Storage system with memory, JSON, and SQLite backends.
-- Priority Pass implementation for Vienna pilot.
-- SUMO integration for traffic simulation.
-- Test suite with basic functionality testing.
-- Example script for running Priority Pass simulation.
-- `simple_b` TCP FSM prototype:
-  - `config.json` stores TCP, SUMO, spawning, and controller settings.
-  - `main.py` directly loads the JSON config and starts/stops all components.
-  - `simulation.py` owns SUMO/TraCI, vehicle spawning, queue metrics, and traffic-light commands.
-  - `controller_fixed_cycle.py` owns the fixed-cycle controller FSM.
-  - `controller_max_pressure.py` owns the max-pressure auction FSM.
-  - `controller_priority_pass.py` owns the Priority Pass auction FSM.
-  - `connector.py` routes JSON-line TCP messages and mirrors traffic to the recorder.
-  - `recorder.py` writes communication records to a text log.
-- `simple_b` resolves `sumo-gui` from PATH, `SUMO_HOME`, and common Windows local SUMO installs,
-  including the user's `%LOCALAPPDATA%\sumo-1.19.0\bin\sumo-gui.exe` path.
+**Core framework:**
+- Core component model with component lifecycle management
+- Communication system with message bus pattern
+- Storage system with memory, JSON, and SQLite backends
+- Priority Pass implementation for Vienna pilot
+- SUMO integration for traffic simulation
+
+**Reorganized application components (in `src/`):**
+- `simulation_sumo.py` — SUMO/TraCI FSM, vehicle spawning, queue metrics, traffic-light commands
+- `controller_fixed_cycle.py` — Fixed-cycle controller FSM
+- `controller_max_pressure.py` — Max-pressure auction controller FSM
+- `controller_priority_pass.py` — Priority Pass auction controller FSM
+- `connector.py` — JSON-line TCP message router FSM
+- `recorder.py` — TCP communication logger FSM writing to `logs/`
+
+**Configuration and scenarios:**
+- Centralized configuration files in `configurations/` directory
+- Scenario-specific SUMO files organized in `scenarios/demo/sumo/` and `scenarios/pilot_*/`
+- `run.py` at root level loads configuration and orchestrates component startup
+- SUMO executable resolution from PATH, `SUMO_HOME`, and platform-specific install locations
+
+**Testing:**
+- Test suite at root-level `tests/` directory
+- Basic functionality tests for core components and Priority Pass implementation
+- Configuration validation tests passing
 
 ## Partially Implemented
 
-- Other pilot sites (Basque Country, Nicosia, Copenhagen, Reggio Emilia, Budapest) exist in
-  `models/` but do not have functional implementations yet.
-- `simple_b` has compile/configuration validation, but the live SUMO GUI loop was not run during
-  this session.
+- Pilot scenarios (Basque Country, Nicosia, Copenhagen, Reggio Emilia, Budapest) have skeleton
+  directory structures in `scenarios/` but lack complete functional implementations
+- Extended test coverage for all controller variants still in progress
 
 ## Planned / Placeholder
 

@@ -1,0 +1,89 @@
+{
+  "scenario_path": "scenarios/demo/sumo",
+  "communication": {
+    "host": "127.0.0.1",
+    "ports": {
+      "connector": 51000,
+      "simulation": 51001,
+      "controller": 51002,
+      "recorder": 51003
+    },
+    "socket_timeout": 2.0
+  },
+  "setup": {
+    "simulation_measurements": {
+      "sumo": {
+        "lane_measurements": {
+          "pressure_lanes": "phase_bidder_lanes.json",
+          "enabled": ["queue_lengths"]
+        },
+        "measurement_details": {
+          "sensor_distance": 100.0
+        },
+        "road_measurements": {},
+        "sensor_measurements": {},
+        "vehicle_measurements": {}
+      }
+    },
+    "startup_pause_seconds": 0.2,
+    "random_seed": 42,
+    "traffic_lights": [
+      "J25",
+      "J26",
+      "J27",
+      "J28",
+      "J29",
+      "J30",
+      "J31",
+      "J32",
+      "J33"
+    ],
+    "controller_response_timeout_seconds": 0.05
+  },
+  "simulation": {
+    "demand": {
+      "traci_spawning_active": true,
+      "route_probabilities_file": "route_probabilities.json",
+      "flow_per_entrance_per_hour": 50.0,
+      "spawn_horizon": 30000,
+      "max_steps": 5000,
+      "step_delay_seconds": 0.0,
+      "vot_spawn_probabilities": {
+        "0": 1.0
+      }
+    },
+    "visualization": {
+      "vehicle_colors": {
+        "regular": [110, 110, 110, 255]
+      }
+    },
+    "sumo_details": {
+      "sumo_binary": "sumo-gui",
+      "sumo_config_file": "config.sumocfg",
+      "sumo_label": "demo_fixed_cycle"
+    }
+  },
+  "controller": {
+    "type": "fixed_cycle",
+    "fixed_cycle": {
+      "transition_duration": 3,
+      "phase_durations": [29, 21, 29, 21],
+      "default_time_delay": 0,
+      "time_delays": {
+        "J25": 0,
+        "J26": 25,
+        "J27": 0,
+        "J28": 25,
+        "J29": 0,
+        "J30": 0,
+        "J31": 25,
+        "J32": 25,
+        "J33": 0
+      }
+    }
+  },
+  "recorder": {
+    "logs_dir": "logs/demo_fixed_cycle",
+    "log_type": "txt"
+  }
+}

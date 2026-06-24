@@ -18,11 +18,12 @@ with support for optimization, simulation, pilot systems, data storage, and comm
 
 ## Documentation Files — MANDATORY MAINTENANCE
 
-The following files in `docs/` are the **single source of truth** for the repository's state.
+The following files are the **single source of truth** for the repository's state.
 Every agent **MUST** keep them up to date. Failure to do so is treated as an incomplete task.
 
 | File                   | Purpose                                                  | Update trigger                           |
 | ---------------------- | -------------------------------------------------------- | ---------------------------------------- |
+| `README.md`            | Platform overview, how to run scenarios, architecture    | When code behavior or entry point changes |
 | `docs/STRUCTURE.md`    | Annotated directory tree with module responsibilities    | Any file/folder added, moved, or removed |
 | `docs/DECISIONS.md`    | Architectural Decision Records (ADRs)                    | Any non-trivial tech or design choice    |
 | `docs/INTEGRATIONS.md` | External tools, simulators, and their config patterns    | When external dependency changes         |
@@ -32,6 +33,9 @@ Every agent **MUST** keep them up to date. Failure to do so is treated as an inc
 
 At the **end of every task**, before considering it complete, you MUST:
 
+1. **`README.md`** — Ensure the "Running Scenarios" and "Architecture" sections match current
+   code and entry points. If you changed how scenarios are configured or run, update the
+   corresponding examples and file paths in the README.
 2. **`docs/STRUCTURE.md`** — Update the directory tree if any files or folders were added,
    removed, or had their responsibilities changed.
 3. **`docs/DECISIONS.md`** — Add an ADR if a non-obvious architectural or algorithmic choice
@@ -41,6 +45,11 @@ At the **end of every task**, before considering it complete, you MUST:
 
 > If you are unsure whether a change warrants a docs update, err on the side of updating.
 > A one-line entry is always better than silence.
+>
+> **Special note on README:** This file is your primary communication with users about what
+> the platform does and how to use it. If you change code behavior, configuration paths,
+> how to run scenarios, or the technical architecture, the README must change. Keep it in
+> sync with the actual code — a stale README damages credibility and wastes user time.
 
 ---
 

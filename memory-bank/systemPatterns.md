@@ -136,19 +136,18 @@ STOPPED --> CONFIGURED: configure()
 - Multiple storage implementations represent different strategies for data persistence
 - Communication templates represent different strategies for component-to-component communication
 
-## simple_b TCP FSM Prototype Pattern
+## Core Application Pattern (TCP FSM Controllers)
 
-The `simple_b` folder is intentionally separate from the reusable `src/fedora_platform`
-architecture. It is a compact, self-contained prototype with one class per controller/component
-file:
+The main application is now built from modular FSM-based components in `src/`:
 
-- `main.py` loads `config.json` and directly wires component lifecycle startup.
-- `Simulation` owns the TraCI connection, starts SUMO GUI, computes queue metrics, and applies
-  traffic-light commands.
-- `FixedCycleController`, `MaxPressureController`, and `PriorityPassController` own alternative
-  traffic-light control FSMs and compute phase commands from simulation messages.
-- `Connector` is the TCP JSON-line router and forwards all inter-component communication.
-- `Recorder` listens on TCP and writes routed communication to a text log.
+- **`run.py`** (root level) — Entry point that loads configuration and wires component lifecycle
+- **`src/simulation_sumo.py`** — Owns the TraCI connection, manages SUMO GUI, computes queue metrics, and applies traffic-light commands
+- **`src/controller_fixed_cycle.py`** — Fixed-cycle controller FSM, computes phase commands from simulation messages
+- **`src/controller_max_pressure.py`** — Max-pressure controller FSM (auction-based)
+- **`src/controller_priority_pass.py`** — Priority Pass controller FSM (Vienna pilot implementation)
+- **`src/connector.py`** — TCP JSON-line message router FSM, forwards all inter-component communication
+- **`src/recorder.py`** — Listens on TCP, logs routed communication to files in `logs/`
 
-All `simple_b` components use explicit state constants and transition maps. Runtime messages are
-JSON objects sent over localhost TCP, terminated by newlines.
+All components use explicit state constants and transition maps. Runtime messages are JSON objects
+sent over localhost TCP, terminated by newlines. Configuration is loaded from `configurations/`
+directory and scenario-specific SUMO files are loaded from `scenarios/`.

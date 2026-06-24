@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sys
 import json
 import time
 from pathlib import Path
@@ -53,14 +54,29 @@ def build_connector_configuration(communication: dict) -> dict:
 
 
 def main() -> None:
-    # TODO: add headless option through CLI
-    # TODO: add visualization option through CLI
+    # parse command-line arguments
+    config_file = "configurations/demo_sumo_priority_pass_config.json"
+    if len(sys.argv) > 1:
+        if sys.argv[1] in ("--help", "-h"):
+            print("Usage: python run.py [CONFIG_FILE]")
+            print(
+                "  CONFIG_FILE: Path to JSON config file (default: demo_sumo_priority_pass_config.json)"
+            )
+            print("\nAvailable demo configs:")
+            print("  - configurations/demo_sumo_fixed_cycle_config.json")
+            print("  - configurations/demo_sumo_max_pressure_config.json")
+            print("  - configurations/demo_sumo_priority_pass_config.json")
+            print("\nAvailable Vienna pilot configs:")
+            print("  - configurations/vienna_sumo_fixed_cycle_config.json")
+            print("  - configurations/vienna_sumo_max_pressure_config.json")
+            print("  - configurations/vienna_sumo_priority_pass_config.json")
+            sys.exit(0)
+        else:
+            config_file = sys.argv[1]
 
     # load the configuration file
-    # TODO: replace this through CLI argument
-    config_file = "configurations/sumo_priority_pass_demo_config.json"
-    with Path(config_file).open("r", encoding="utf-8") as config_file:
-        config = json.load(config_file)
+    with Path(config_file).open("r", encoding="utf-8") as f:
+        config = json.load(f)
 
     communication = dict(config["communication"])
     setup = dict(config.get("setup", {}))

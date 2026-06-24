@@ -2,146 +2,103 @@
   <img src="figures/fedora_banner.svg" alt="FEDORA platform banner" width="100%">
 </p>
 
-# FEDORA Platform
+# Traffic Control Platform
 
-FEDORA is a European research and innovation project for next-generation
-multimodal traffic management. The project develops Mobility and Transport
-Multimodal (MTM) Spaces: federated digital ecosystems where public authorities,
-transport operators, industry, researchers, and citizens can cooperate through
-secure data sharing and advanced digital tools.
+A proof-of-concept modular traffic control platform demonstrating how optimization and control modules can be composed with traffic simulators, communication systems, and data storage backends. This repository is designed as an example for signal timing optimization strategies and modular component architecture.
 
-This repository provides a reusable Python platform for FEDORA pilots. It is
-designed around finite-state components for optimisation modules, simulators,
-pilot systems, data storage, and communication systems. Pilot-specific assets
-live in `models/`, so the repository is self-contained.
+## Overview
 
-## Pilots
+The platform provides:
 
-<table>
-  <tr>
-    <td width="33%" valign="top">
-      <img src="figures/vienna-s-state-opera-SML-500x500.webp" alt="Vienna" width="100%"><br>
-      <b>Pilot 1 - Vienna, Austria</b><br>
-      Multimodal services optimisation for equitable future mobility.
-    </td>
-    <td width="33%" valign="top">
-      <img src="figures/Basque-la-salve-bridge-night-with-highway-lights-arc-bilbao-spain-500x500.webp" alt="Basque Country" width="100%"><br>
-      <b>Pilot 2 - Basque Country, Spain</b><br>
-      Focus: freight logistics hub integration.
-    </td>
-    <td width="33%" valign="top">
-      <img src="figures/Nicosia-500x500.webp" alt="Nicosia" width="100%"><br>
-      <b>Pilot 3 - Nicosia, Cyprus</b><br>
-      Focus: integration of aerial and road traffic services.
-    </td>
-  </tr>
-  <tr>
-    <td width="33%" valign="top">
-      <img src="figures/denmark-houses-buildings-city-copenhagen-denmark-500x500.webp" alt="Copenhagen" width="100%"><br>
-      <b>Pilot 4 - Copenhagen, Denmark</b><br>
-      Focus: foresight simulations for future mobility.
-    </td>
-    <td width="33%" valign="top">
-      <img src="figures/Reggio-500x500.webp" alt="Reggio Emilia" width="100%"><br>
-      <b>Pilot 5 - Reggio Emilia, Italy</b><br>
-      Focus: demand management strategies.
-    </td>
-    <td width="33%" valign="top">
-      <img src="figures/Budapest-beautiful-view-architecture-budapest-500x500.webp" alt="Budapest" width="100%"><br>
-      <b>Pilot 6 - Budapest, Hungary</b><br>
-      Focus: cross-modal management of road and inland waterways.
-    </td>
-  </tr>
-</table>
+- **Three control strategies** for traffic signal timing: fixed-cycle, max-pressure, and priority-pass auction control
+- **Modular component architecture** where optimization modules, simulators, communication systems, and storage are decoupled
+- **Finite-state machine lifecycle** for all components, making composition explicit and testable
+- **SUMO integration** for microscopic traffic simulation using the TraCI API
+- **TCP-based inter-component communication** with JSON-line message format
+- **Persistent logging** of all control decisions and simulation results
 
-## Vienna Pilot
+## Control Strategies
 
-The Vienna pilot focuses on optimising multimodal traffic management services to
-support equitable and socially balanced urban mobility in the city centre.
+### 1. Fixed-Cycle Controller
 
-Building on the C-ITS infrastructure deployed by the City of Vienna since 2020,
-the pilot extends traffic management beyond private car traffic to include
-pedestrians, cyclists, and public transport. Along the Ringstrasse and both
-sides of the Danube Canal, traffic lights are equipped with infrastructure-based
-C-ITS units providing services such as Green Light Optimal Speed Advice, signal
-phase and timing information, and the Green Wave Vienna App. These solutions
-enable dynamic green time optimisation based on local traffic conditions and are
-applied across a broader range of transport modes than before.
+Pre-timed signal schedules with offset coordination across intersections. Each intersection cycles through fixed phase durations regardless of traffic conditions. Simple and predictable, but cannot adapt to demand changes.
 
-The pilot area covers key sections of Vienna's primary urban road network,
-including tram corridors with mixed and dedicated traffic, bus lanes, and
-segregated cycling facilities. Up to 15 signalised intersections are used for
-testing and demonstration, complemented by the Mega Bicycle Highway along
-Praterstrasse, which supports cyclist participation through FEDORA's mobile
-application. Traffic management is supported by an expanded monitoring system
-combining C-ITS and V2X data, floating car data, stationary detectors, and
-traffic signal data, feeding near real-time multimodal traffic models. Within
-FEDORA, Vienna applies social optimum models and tests synchromodal
-optimisation algorithms in a real urban environment, supporting network-wide
-impact assessment and future mobility planning.
+**Demo Configuration:** `configurations/demo_sumo_fixed_cycle_config.json`  
+**Vienna Configuration:** `configurations/vienna_sumo_fixed_cycle_config.json`
 
-Key elements:
+### 2. Max-Pressure Controller
 
-- C-ITS-equipped traffic lights
-- Multimodal traffic management
-- Social optimum optimisation models
-- Integration of pedestrians, cyclists, and public transport
-- Green Light Optimal Speed Advice and Green Wave Vienna App
-- V2X and C-ITS data from cars, trams, and buses
-- Webcam-based and stationary traffic detection
-- Real-time road traffic models
-- Multimodal traffic modelling for Eastern Austria
-- Simulation and foresight analysis tools
+Real-time responsive control based on queue pressures (difference in queue lengths at opposite approaches). Uses an auction mechanism to assign the next green phase to the direction with highest pressure. Adapts immediately to traffic demand but may be unstable under high congestion.
 
-The current executable prototype for this pilot is the Priority Pass traffic
-signal optimiser:
+**Demo Configuration:** `configurations/demo_sumo_max_pressure_config.json`  
+**Vienna Configuration:** `configurations/vienna_sumo_max_pressure_config.json`
 
-- `PriorityPassTrafficOptimizer` creates traffic-light control settings.
-- `MicroscopicTrafficSumoSimulator` runs the SUMO microscopic traffic model.
-- `ViennaPilot` represents the pilot side, accepts traffic-light control plans,
-  and provides dummy sensor snapshots from a second SUMO-backed field model.
+### 3. Priority-Pass Controller
+
+Extension of max-pressure that includes priority for specific vehicles in the auction mechanism. Balances traffic efficiency with transit reliability through a configurable trade-off parameter.
+
+**Demo Configuration:** `configurations/demo_sumo_priority_pass_config.json`  
+**Vienna Configuration:** `configurations/vienna_sumo_priority_pass_config.json`
 
 ## Repository Structure
 
-```text
-src/fedora_platform/
-  components.py      Abstract FEDORA components and finite-state lifecycle
-  communication.py   Message bus plus transport adapter templates
-  storage.py         Memory, JSON, and SQLite stores plus storage templates
-  mtm_space.py       Component container for one MTM Space
-  priority_pass.py   Vienna Priority Pass implementation
-  traffic_model_sumo/
-                     SUMO controller, recorder, and microscopic simulator code
+```
+src/
+  simulation_sumo.py           SUMO/TraCI simulator FSM component
+  controller_fixed_cycle.py    Fixed-cycle controller FSM
+  controller_max_pressure.py   Max-pressure auction controller FSM
+  controller_priority_pass.py  Priority-pass auction controller FSM
+  connector.py                 TCP JSON-line message router FSM
+  recorder.py                  Communication logger FSM
 
-models/
-  pilot_vienna/
-    sumo/                SUMO network, demand, route and phase files
-  pilot_basque_country/
-  pilot_nicosia/
-  pilot_copenhagen/
-  pilot_reggio_emilia/
-  pilot_budapest/
+configurations/
+  demo_sumo_fixed_cycle_config.json       Demo: fixed-cycle controller
+  demo_sumo_max_pressure_config.json      Demo: max-pressure controller
+  demo_sumo_priority_pass_config.json     Demo: priority-pass controller (default)
+  vienna_sumo_fixed_cycle_config.json     Vienna: fixed-cycle controller
+  vienna_sumo_max_pressure_config.json    Vienna: max-pressure controller
+  vienna_sumo_priority_pass_config.json   Vienna: priority-pass controller
 
-figures/
-  Pilot images and repository banner
+scenarios/demo/sumo/
+  config.sumocfg               SUMO configuration
+  network.net.xml              Network topology
+  demand.xml                   Vehicle routes
+  phase_*.json                 Lane-to-phase mappings
+  route_*.json                 Route metadata
 
-example/
-  run_priority_pass.py
+tests/
+  test_core.py                 Component lifecycle and FSM tests
+  test_priority_pass.py        Priority-pass specific tests
+
+docs/
+  STRUCTURE.md                 Directory structure and module responsibilities
+  DECISIONS.md                 Architectural decision records
+  INTEGRATIONS.md              External tool integration guides
+  scratchpad.md                Session working notes
+
+memory-bank/
+  Persistent project context (see CLAUDE.md for guidelines)
 ```
 
-## Component Model
+## Architecture
 
-The platform separates five responsibilities:
+### Component Model
 
-- `OptimizationModule`: computes control or planning decisions.
-- `SimulatorModule`: runs a digital model and exposes simulation results.
-- `PilotSystem`: represents the field side of a pilot, real or simulated.
-- `DataStorage`: persists records, results, and interaction logs.
-- `MessageBus`: moves typed `Message` objects between components.
+The platform separates five core responsibilities:
 
-Every component is a finite state machine with the same lifecycle. This makes it
-possible to compose optimisers, simulators, storage backends, and pilots without
-each class inventing its own readiness semantics.
+- **Execution Layer (Simulator / Pilot)**: Execution module onto which the selected module should be applied, abstracting interfaces specific to the selected simulation / pilot city environment (e.g. SUMO or the Vienna pilot) and exposes state (queue lengths, vehicle positions)
+- **Controller / Optimization Modules**: Depending on the type of module connected to the execution layer, specific simulator states are read and control outputs are generated (e.g. traffic signal timing decisions)
+- **Connector**: Routes JSON-line messages between Simulator, Controller, and Recorder over TCP
+- **Recorder**: Logs all inter-component communication for post-simulation analysis
+- **Storage**: Persists records and logs (currently to text files; SQLite backend available)
+
+### Finite State Machine Lifecycle
+
+Every component is modeled as a finite state machine. This makes composition explicit and allows each component to manage its own readiness without hidden state:
+
+- **CREATED** → **CONFIGURED** → **READY** → **RUNNING** → **PAUSED** → **RUNNING** → **STOPPED**
+- **FAILED** transitions are possible from any state; **STOPPED** can reconfigure
+- Components negotiate startup order through the Connector
 
 ```mermaid
 stateDiagram-v2
@@ -164,224 +121,223 @@ stateDiagram-v2
     STOPPED --> CONFIGURED: configure()
 ```
 
-The Priority Pass controller inside SUMO is also an FSM. It repeatedly auctions
-traffic-light phases, changes signal state when needed, enforces a minimum green
-period, and waits before the next auction. These states are exposed in
-`PriorityPassControllerState` and `PRIORITY_PASS_CONTROLLER_TRANSITIONS` in
-`src/fedora_platform/priority_pass.py`.
+### Control Loop
+
+The components operate in a closed loop, applied to the example scenario of computing traffic signal timing decisions based on SUMO simulation state. The loop is as follows:
+
+```
+1. Execution layer reads SUMO state (queue lengths, vehicle positions)
+2. Execution layer publishes "traffic_state" message via Connector
+3. Controller receives "traffic_state", computes next signal timing
+4. Controller publishes "control_command" message via Connector
+5. Execution layer receives "control_command", applies it to SUMO
+6. Recorder logs all messages for post-simulation analysis
+7. Loop repeats at SUMO step rate (~0.1s per step)
+```
+
+All communication is JSON-line over TCP (localhost, configurable ports). Component startup and shutdown order is coordinated through explicit state transitions.
+
+## Inter-Component Communication
+
+Messages use a simple JSON envelope:
+
+```json
+{
+  "timestamp": "2026-06-24T12:34:56Z",
+  "sender": "simulator",
+  "receiver": "controller",
+  "topic": "traffic_state",
+  "payload": {
+    "step": 1234,
+    "queue_lengths": {"J25": 5, "J26": 12, ...},
+    "signal_state": {"J25": "green", "J26": "red", ...}
+  }
+}
+```
+
+Topics define the message contract (in the currently considered demonstration scenario with SUMO & traffic signal control):
+
+- `"traffic_state"` — Simulator → Controller: queue lengths, vehicle counts, signal state
+- `"control_command"` — Controller → Simulator: phase assignment, timing parameters
+- `"log_message"` — Any → Recorder: diagnostic and decision logs
+- `"recorder_ready"` — Recorder: startup complete, ready to receive messages
+
+## System Flowchart
+
+The diagram shows component startup and the steady-state control loop. The main simulation loop (steps 6.1–6.7) repeats at SUMO's step rate (~0.1s per cycle) and represents the core of the methodology:
 
 ```mermaid
-stateDiagram-v2
-    [*] --> READY_FOR_AUCTION
-    READY_FOR_AUCTION --> WAIT_FOR_NEXT_AUCTION: winning phase stays active
-    READY_FOR_AUCTION --> CHANGING_SIGNAL: new phase wins
-    CHANGING_SIGNAL --> WAIT_MIN_GREEN_TIME: transition complete
-    WAIT_MIN_GREEN_TIME --> READY_FOR_AUCTION: min green elapsed
-    WAIT_FOR_NEXT_AUCTION --> READY_FOR_AUCTION: auction suspend elapsed
+%%{init: {'flowchart': {'curve': 'natural'}, 'theme': 'base'}}%%
+graph TB
+    Start(["Start: run.py<br/>Load config"])
+
+    subgraph startup["Startup Phase"]
+        direction LR
+        Start -->|Initialize| Rec["Recorder"]
+        Rec -->|Initialize| Con["Connector"]
+        Con -->|Initialize| Ctrl["Controller"]
+        Ctrl -->|Initialize| Sim["Simulator"]
+    end
+
+    startup --> Ready["✓ Pipeline Ready"]
+
+    subgraph loop["Main Simulation Loop"]
+        direction TB
+        Sim1["6.1 Simulator<br/>Reads state"]
+        Con1["6.2 Connector<br/>Routes"]
+        Ctrl1["6.3 Controller<br/>Computes phase"]
+        Sim2["6.4 Simulator<br/>Applies command"]
+        Rec1["6.5 Recorder<br/>Logs messages"]
+
+        Sim1 -->|traffic_state| Con1
+        Con1 -->|Route to| Ctrl1
+        Ctrl1 -->|control_command| Con1
+        Con1 -->|Broadcast| Sim2
+        Con1 -->|Mirror| Rec1
+        Sim2 -->|Step forward| Sim1
+    end
+
+    Ready --> loop
+    Sim2 --> Check{Simulation<br/>complete?}
+
+    Check -->|No| Sim1
+    Check -->|Yes| End(["Shutdown"])
+
+    %% Styling: no fill, colors adapt to theme
+    style Start stroke:#0969da,stroke-width:2px,color:#0969da
+    style Ready stroke:#1f6feb,stroke-width:2px,color:#1f6feb
+    style Sim1 stroke:#fb8500,stroke-width:1.5px,color:#fb8500
+    style Sim2 stroke:#fb8500,stroke-width:1.5px,color:#fb8500
+    style Con1 stroke:#8957e5,stroke-width:1.5px,color:#8957e5
+    style Ctrl1 stroke:#1f6feb,stroke-width:1.5px,color:#1f6feb
+    style Rec1 stroke:#d1242f,stroke-width:1.5px,color:#d1242f
+    style Check stroke:#fb8500,stroke-width:2px,color:#fb8500
+    style End stroke:#d1242f,stroke-width:2px,color:#d1242f
+    style startup stroke:#999,stroke-width:1px,color:#666
+    style loop stroke:#0969da,stroke-width:2px,color:#0969da
 ```
 
-## Class Diagram
+**Core Methodology: Main Simulation Loop**
 
-```mermaid
-classDiagram
-    class FedoraComponent {
-      +component_id: str
-      +role: ComponentRole
-      +state: ComponentState
-      +configure()
-      +start()
-      +step()
-      +stop()
-      +publish()
-      +receive()
-    }
+The steady-state loop repeats at ~0.1s per cycle and is the core of the control system:
 
-    class OptimizationModule {
-      +optimize(context)
-    }
+1. **6.1** — Simulator reads current traffic state (queue lengths, vehicle positions)
+2. **6.2–6.3** — Connector routes traffic state to Controller, which computes the optimal signal phase
+3. **6.4** — Connector broadcasts control command back to Simulator
+4. **6.5** — Connector mirrors messages to Recorder for logging and analysis
+5. **6.6** — SUMO advances one simulation step, loop checks if simulation is complete
+6. **Loop back** to 6.1 if incomplete, or **Shutdown** when done
 
-    class SimulatorModule {
-      +collect_results()
-    }
+This closed-loop control enables adaptive traffic signal optimization. The phase computation algorithm depends on the selected controller strategy: fixed-cycle timing, max-pressure auction, or priority-pass optimization.
 
-    class PilotSystem {
-      +run()
-    }
+## Running Scenarios
 
-    class DataStorage {
-      +read(key)
-      +write(key, value)
-    }
+Each control strategy has its own configuration file. The naming convention is `{scenario}_sumo_{controller}_config.json`.
 
-    class MessageBus {
-      +register(component_id)
-      +subscribe(topic, component_id)
-      +publish(message)
-      +drain(component_id)
-    }
+### Demo Scenario Configs
 
-    class PriorityPassTrafficOptimizer {
-      +optimize(context)
-    }
-
-    class MicroscopicTrafficSumoSimulator {
-      +build_settings()
-      +run_until_complete()
-      +collect_results()
-    }
-
-    class ViennaPilot {
-      +accept_traffic_light_control(tl_control)
-      +provide_sensor_data()
-      +run()
-    }
-
-    class SQLiteInteractionStore {
-      +record_interaction(message)
-      +list_interactions(limit, topic)
-    }
-
-    FedoraComponent <|-- OptimizationModule
-    FedoraComponent <|-- SimulatorModule
-    FedoraComponent <|-- PilotSystem
-    FedoraComponent <|-- DataStorage
-    OptimizationModule <|-- PriorityPassTrafficOptimizer
-    SimulatorModule <|-- MicroscopicTrafficSumoSimulator
-    PilotSystem <|-- ViennaPilot
-    DataStorage <|-- SQLiteInteractionStore
-    FedoraComponent --> MessageBus
-    ViennaPilot --> PriorityPassTrafficOptimizer
-    ViennaPilot --> MicroscopicTrafficSumoSimulator
-    ViennaPilot --> DataStorage
-```
-
-## Entity Relationship Model
-
-The local SQLite store can keep both experiment records and a full interaction
-log of all messages published through the in-memory bus.
-
-```mermaid
-erDiagram
-    COMPONENT ||--o{ MESSAGE : sends
-    COMPONENT ||--o{ MESSAGE : receives
-    MESSAGE {
-        integer id
-        string topic
-        string sender
-        string receiver
-        string correlation_id
-        string payload_json
-        string timestamp
-        string recorded_at
-    }
-    RECORD {
-        string key
-        string value_json
-        string created_at
-        string updated_at
-    }
-    EXPERIMENT ||--o{ RECORD : writes
-    EXPERIMENT ||--o{ MESSAGE : emits
-```
-
-## Vienna Pilot Message Flow
-
-```mermaid
-sequenceDiagram
-    participant Optimizer as PriorityPassTrafficOptimizer
-    participant Pilot as ViennaPilot
-    participant Field as Dummy SUMO Pilot
-    participant Simulator as MicroscopicTrafficSumoSimulator
-    participant Store as SQLiteInteractionStore
-
-    Pilot->>Optimizer: optimise(intersections)
-    Optimizer-->>Pilot: tl_control
-    Pilot->>Field: accept traffic-light control
-    Field-->>Pilot: sensor snapshot
-    Pilot->>Simulator: configure tl_control
-    Simulator-->>Pilot: simulation results
-    Pilot->>Store: write configuration, sensors, results
-```
-
-## Communication Templates
-
-`available_communication_templates()` provides a catalog for future adapters:
-
-| Template | Good for | Notes |
-| --- | --- | --- |
-| TCP | Reliable component streams in a trusted network | Newline-delimited JSON messages over sockets |
-| UDP | High-frequency sensor telemetry | Add sequence numbers and timestamps |
-| REST API | Service and dashboard integration | Simple request-response HTTP |
-| SOAP API | Legacy authority or enterprise systems | WSDL/XML contract style |
-| WebSocket API | Live bidirectional pilot and dashboard links | Good for sensor/control loops |
-| Blockchain | Audit, settlement, and trust anchors | Store commitments and hashes, not raw telemetry |
-
-The current runnable implementation is `InMemoryMessageBus`, which is enough for
-local tests and can optionally log every published message to SQLite.
-
-## Data Storage
-
-Available storage implementations:
-
-- `InMemoryDataStore`: volatile records for tests.
-- `JSONFileDataStore`: one JSON file per logical key.
-- `SQLiteInteractionStore`: local database using Python's built-in `sqlite3`.
-
-`SQLiteInteractionStore` is the practical local default: it requires no database
-server, stores key-value records, and records every message interaction when
-attached to `InMemoryMessageBus`.
-
-Additional templates in `available_storage_templates()` describe likely next
-steps: DuckDB for analytics, PostgreSQL/PostGIS for operational pilots, and
-S3-compatible object storage for large simulation outputs.
-
-## Diagram Tooling
-
-The README uses Mermaid, which renders directly on GitHub and works well for
-FSMs, class diagrams, ER diagrams, and sequence diagrams.
-
-Useful packages if generated figures are needed later:
-
-- `transitions[diagrams]`: Python FSM package that can export Graphviz diagrams.
-- `graphviz`: mature DOT-based diagram rendering.
-- `plantuml`: good for large architecture diagrams in documentation pipelines.
-- `mermaid-cli`: renders Mermaid diagrams to SVG/PNG in CI.
-
-## Running
-
-Dry-run the Vienna Priority Pass configuration without starting SUMO:
+**Demo Fixed-Cycle Control:**
 
 ```bash
-python example/run_priority_pass.py
+python run.py configurations/demo_sumo_fixed_cycle_config.json
 ```
 
-Run the full simulation when SUMO is installed:
+**Demo Max-Pressure Control:**
 
 ```bash
-python example/run_priority_pass.py --run --sumo-binary sumo
+python run.py configurations/demo_sumo_max_pressure_config.json
 ```
 
-On Windows, pass the executable path if it is not on `PATH`:
+**Demo Priority-Pass Control (default):**
 
 ```bash
-python example/run_priority_pass.py --run --sumo-binary C:\path\to\sumo.exe
+python run.py configurations/demo_sumo_priority_pass_config.json
 ```
 
-Use a specific local SQLite interaction log:
+Or simply:
 
 ```bash
-python example/run_priority_pass.py --sqlite-path runs/vienna.sqlite3
+python run.py
 ```
 
-## Installation
+### Vienna Pilot Scenario Configs
+
+**Vienna Fixed-Cycle Control:**
 
 ```bash
-pip install -r requirements.txt
+python run.py configurations/vienna_sumo_fixed_cycle_config.json
 ```
 
-For development:
+**Vienna Max-Pressure Control:**
 
 ```bash
-pip install -e .
-python -m unittest discover -s tests
+python run.py configurations/vienna_sumo_max_pressure_config.json
+```
+
+**Vienna Priority-Pass Control:**
+
+```bash
+python run.py configurations/vienna_sumo_priority_pass_config.json
+```
+
+### Help and Available Scenarios
+
+```bash
+python run.py --help
+```
+
+### Output
+
+- **Simulation logs:** `logs/{scenario}_{controller}/` — Complete trace of all decisions and state
+  - Example: `logs/demo_fixed_cycle/`, `logs/vienna_priority_pass/`
+- **SUMO GUI:** Visual representation of vehicles and signal states (when `sumo-gui` is available)
+- **TCP messages:** Logged by Recorder component as newline-delimited JSON
+
+## Requirements
+
+- **Python 3.13** (required)
+- **SUMO 1.19.0+** (for simulation; the platform can run without it in dry-run mode)
+  - Install via Homebrew on macOS: `brew install sumo`
+  - Install via package manager on Linux or from [sumo.dlr.de](https://sumo.dlr.de)
+  - Ensure `sumo-gui` or `sumo` binary is on PATH or set `SUMO_HOME` environment variable
+
+## Setup
+
+1. Clone the repository
+2. Create and activate a virtual environment:
+   ```bash
+   python3.13 -m venv venv
+   source venv/bin/activate  # on Windows: venv\Scripts\activate
+   ```
+3. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+4. Run tests to verify setup:
+   ```bash
+   pytest tests/ -v
+   ```
+5. Run a scenario:
+   ```bash
+   python run.py configurations/demo_sumo_fixed_cycle_config.json
+   ```
+   Or run the default (demo priority-pass):
+   ```bash
+   python run.py
+   ```
+
+## Development
+
+Update the README when making code changes. See `CLAUDE.md` and `AGENTS.md` for guidance on keeping documentation in sync with implementation.
+
+Running the test suite:
+
+```bash
+pytest tests/ -v
+```
+
+Code quality check:
+
+```bash
+pylint src/
 ```
