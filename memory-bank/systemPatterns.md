@@ -151,7 +151,7 @@ The main application is built from modular FSM-based components in `src/`, orche
 ### Simulation Step Loop (Orchestrator-Driven)
 
 ```
-Orchestrator.start() → recorder.start() → controller.start() → simulation.start()
+Orchestrator.start() → recorder.start() → logic_module[0].start() → ... → simulation.start()
     ↓
 simulation sends "simulation_started"
     ↓
@@ -159,16 +159,20 @@ Orchestrator._route() intercepts → sends "step" to simulation
     ↓
 simulation collects measurements → sends "traffic_state" to orchestrator
     ↓
-Orchestrator routes "traffic_state" to controller
+Orchestrator intercepts "traffic_state" → fans out to ALL logic modules
     ↓
-controller computes plan → sends "traffic_light_command" to orchestrator
+each logic module computes plan → sends "traffic_light_command" to orchestrator
     ↓
-Orchestrator._route() intercepts → sends "apply_and_advance" + next "step" to simulation
+Orchestrator accumulates responses; once all N modules replied:
+  → merges command dicts → sends "apply_and_advance" + next "step" to simulation
     ↓
 simulation applies commands → advances SUMO → collects next measurements → ...
     ↓
 simulation sends "simulation_stopped" → Orchestrator.done_event.set()
 ```
+
+Config supports N logic modules via `"logic_modules": [...]` array. Single-module case (N=1)
+is behaviorally identical to the previous single-module design.
 
 All components use explicit state constants and transition maps. Runtime messages are JSON objects
 sent over localhost TCP, terminated by newlines. Configuration is loaded from `configurations/`

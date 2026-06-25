@@ -176,3 +176,52 @@ The three existing controller implementations keep their class names and all log
 `"fixed_cycle"` → `"controller_fixed_cycle"`, `"max_pressure"` → `"controller_max_pressure"`,
 `"priority_pass"` → `"controller_priority_pass"`. This makes the type value self-describing when
 read in a config file — even without the section heading, the reader knows what kind of logic module is plugged in.
+
+---
+
+## ADR 2026-06-25: Multi-Logic-Module Support
+
+### Status
+
+Accepted.
+
+### Context
+
+The Orchestrator previously wired exactly one logic module per run. Generalising the framework
+to support pluggable combinations of logic modules (e.g., a demand model + a signal controller
+running in tandem) required a structural change in the configuration schema and the Orchestrator
+routing logic.
+
+### Decision
+
+The configuration key `"logic_module"` (a single object) is replaced by `"logic_modules"` (an
+ordered array of objects). The Orchestrator is updated to:
+
+- Instantiate all entries in the array as separate logic module objects in order.
+- Port assignment: index 0 falls back to the `"logic_module"` port key for backward compatibility
+  with existing single-module configs; index `i > 0` requires `"logic_module_i"` in
+  `communication.ports`.
+- Start all modules in array order (with the configured startup pause between each), and stop them
+  in reverse order.
+- Intercept `"traffic_state"` in `_route()` and fan it out to every logic module simultaneously
+  (replacing the previous passthrough to a single target).
+- Accumulate `"traffic_light_command"` responses in a per-step counter; once all N modules have
+  replied, merge their command dicts and send a single `"apply_and_advance"` to the simulation.
+  Commands for the same traffic light from multiple modules are merged with last-write-wins
+  semantics (non-deterministic for conflicting assignments).
+- Collect required measurements as the union (preserving order) of each module's
+  `get_required_measurements()` return value.
+
+`run.py` uses `logic_modules[0]["type"]` for the result directory name and checks all entries for
+`"controller_priority_pass"` to determine whether priority-pass plots should be shown.
+
+### Consequences
+
+- Existing single-module configurations remain valid by wrapping the existing object in a one-element
+  array and keeping the `"logic_module"` port key unchanged.
+- Adding a second logic module to a run requires only a new array entry in the config and a new port
+  key in `communication.ports` (no Python changes).
+- With a single module the behaviour is identical to before: the first and only response from
+  `"traffic_light_command"` immediately triggers `"apply_and_advance"`.
+- Conflicting traffic-light assignments from multiple modules are merged with last-write-wins order;
+  callers are responsible for assigning disjoint traffic-light sets if determinism is required.

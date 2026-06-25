@@ -215,17 +215,13 @@ class Evaluator:
 
         _, ax = plt.subplots(figsize=(12, 6))
         if count_regular_series:
-            ax.plot(
-                times, count_regular_series, label="Regular Vehicles", linewidth=2
-            )
+            ax.plot(times, count_regular_series, label="Regular Vehicles", linewidth=2)
         # show_priority is False for controllers that don't use priority vehicles
         if count_priority_series and self.show_priority:
             ax.plot(
                 times, count_priority_series, label="Priority Vehicles", linewidth=2
             )
-        ax.plot(
-            times, count_total_series, label="Total", linewidth=2, linestyle="--"
-        )
+        ax.plot(times, count_total_series, label="Total", linewidth=2, linestyle="--")
 
         ax.set_xlabel("Time (seconds)")
         ax.set_ylabel("Number of Vehicles")

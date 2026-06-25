@@ -86,8 +86,13 @@ class Orchestrator:
         # component registry: name → (host, port); populated in configure()
         self.components: dict[str, tuple[str, int]] = {}
         self.recorder: Recorder | None = None
-        self.logic_module: _AnyLogicModule | None = None
+        self.logic_modules: list[_AnyLogicModule] = []
+        self._logic_module_names: list[str] = []  # component keys for each logic module
         self.simulation: Simulation | None = None
+
+        # per-step command accumulator for multi-module support
+        self._pending_commands: dict[str, Any] = {}
+        self._pending_commands_count: int = 0
 
         # set to True once simulation_started is received; back to False on simulation_stopped
         self.simulation_running: bool = False
@@ -135,12 +140,17 @@ class Orchestrator:
         recorder_cfg["port"] = int(communication["ports"]["recorder"])
         self.recorder = Recorder(recorder_cfg)
 
-        self._configure_logic_module(
-            communication, setup, dict(self.configuration["logic_module"])
+        self._configure_logic_modules(
+            communication, setup, list(self.configuration["logic_modules"])
         )
 
-        # ask the logic module which measurements it needs, then pass them to the simulation
-        required = self.logic_module.get_required_measurements()  # type: ignore[union-attr]
+        # aggregate required measurements from all logic modules (union, preserving order)
+        required: list[str] = []
+        for module in self.logic_modules:
+            for measurement in module.get_required_measurements():
+                if measurement not in required:
+                    required.append(measurement)
+
         sim_cfg = dict(self.configuration["simulation"])
         sim_cfg["_scenario_path"] = str(self.configuration["scenario_path"])
         sim_cfg["_logs_dir"] = str(self.configuration["recorder"]["logs_dir"])
@@ -156,14 +166,15 @@ class Orchestrator:
             self._transition("prepare")
         self._transition("start")
         assert self.recorder is not None
-        assert self.logic_module is not None
+        assert len(self.logic_modules) > 0
         assert self.simulation is not None
 
-        # start in order: recorder first so no messages are lost, then logic_module, then simulation
+        # start in order: recorder first so no messages are lost, then all logic modules, then simulation
         self.recorder.start()
         time.sleep(self.startup_pause_seconds)
-        self.logic_module.start()
-        time.sleep(self.startup_pause_seconds)
+        for module in self.logic_modules:
+            module.start()
+            time.sleep(self.startup_pause_seconds)
 
         # simulation start triggers SUMO and fires simulation_started, which kicks off the loop
         self.simulation.start()
@@ -177,7 +188,9 @@ class Orchestrator:
         self.stop_event.set()
 
         # stop in reverse startup order: simulation first so no new messages arrive
-        for component in (self.simulation, self.logic_module, self.recorder):
+        for component in (
+            [self.simulation] + list(reversed(self.logic_modules)) + [self.recorder]
+        ):
             if component is not None:
                 component.stop()
 
@@ -215,32 +228,52 @@ class Orchestrator:
     # Sub-component construction
     # ------------------------------------------------------------------
 
-    def _configure_logic_module(
+    def _configure_logic_modules(
         self,
         communication: dict,
         setup: dict,
-        logic_module_cfg: dict,
+        logic_modules_cfg: list[dict],
     ) -> None:
-        """Instantiate the correct logic module type from configuration.
+        """Instantiate all logic modules from the configuration array.
+
+        Port lookup for index 0 falls back to the "logic_module" key for backward
+        compatibility with configs that predate multi-module support.
 
         Args:
             communication: Communication section of the top-level config.
             setup: Setup section of the top-level config.
-            logic_module_cfg: Logic module section of the top-level config.
+            logic_modules_cfg: Ordered list of logic module configuration dicts.
         """
-        cfg = dict(logic_module_cfg)
+        ports = dict(communication["ports"])
+        self.logic_modules = []
+        self._logic_module_names = []
 
-        # inject network and shared setup fields before passing to the logic module
-        cfg["host"] = self.host
-        cfg["port"] = int(communication["ports"]["logic_module"])
-        cfg["orchestrator"] = {"host": self.host, "port": self.port}
-        cfg["random_seed"] = int(setup.get("random_seed", 42))
-        cfg["traffic_lights"] = list(setup.get("traffic_lights", []))
+        for index, module_cfg in enumerate(logic_modules_cfg):
+            # prefer "logic_module_N" key; fall back to plain "logic_module" for index 0
+            indexed_key = f"logic_module_{index}"
+            if indexed_key in ports:
+                port_key = indexed_key
+            elif index == 0 and "logic_module" in ports:
+                port_key = "logic_module"
+            else:
+                raise KeyError(
+                    f"No port configured for logic module at index {index}; "
+                    f"expected key '{indexed_key}' in communication.ports"
+                )
 
-        # look up logic module class by type string (e.g. "controller_priority_pass")
-        logic_module_type = str(logic_module_cfg.get("type"))
-        cls = self._LOGIC_MODULE_TYPES[logic_module_type]
-        self.logic_module = cls(cfg)
+            # inject network and shared setup fields before passing to the logic module
+            cfg = dict(module_cfg)
+            cfg["host"] = self.host
+            cfg["port"] = int(ports[port_key])
+            cfg["orchestrator"] = {"host": self.host, "port": self.port}
+            cfg["random_seed"] = int(setup.get("random_seed", 42))
+            cfg["traffic_lights"] = list(setup.get("traffic_lights", []))
+
+            # look up logic module class by type string (e.g. "controller_priority_pass")
+            logic_module_type = str(module_cfg.get("type"))
+            cls = self._LOGIC_MODULE_TYPES[logic_module_type]
+            self.logic_modules.append(cls(cfg))
+            self._logic_module_names.append(port_key)
 
     def _configure_simulation(
         self,
@@ -376,12 +409,25 @@ class Orchestrator:
             self._send_step_to_simulation()
             return
 
+        if topic == "traffic_state" and sender == "simulation":
+            # fan out to every logic module so all can compute their response
+            for name in self._logic_module_names:
+                self._forward(name, message)
+            return
+
         if topic == "traffic_light_command" and sender == "logic_module":
-            # apply controller decisions then request the next measurement step
-            commands = dict(message.get("payload", {}).get("commands", {}))
-            self._send_apply_and_advance(commands)
-            if self.simulation_running:
-                self._send_step_to_simulation()
+            # accumulate commands; send apply_and_advance only after all modules have responded
+            self._pending_commands.update(
+                dict(message.get("payload", {}).get("commands", {}))
+            )
+            self._pending_commands_count += 1
+            if self._pending_commands_count >= len(self.logic_modules):
+                merged = dict(self._pending_commands)
+                self._pending_commands.clear()
+                self._pending_commands_count = 0
+                self._send_apply_and_advance(merged)
+                if self.simulation_running:
+                    self._send_step_to_simulation()
             return
 
         if topic == "simulation_stopped":
