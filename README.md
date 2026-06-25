@@ -44,11 +44,11 @@ Extension of max-pressure that includes priority for specific vehicles in the au
 
 ```
 src/
-  simulation_sumo.py           SUMO/TraCI simulator FSM component
+  environment_sumo.py          SUMO/TraCI environment FSM component
   controller_fixed_cycle.py    Fixed-cycle controller FSM
   controller_max_pressure.py   Max-pressure auction controller FSM
   controller_priority_pass.py  Priority-pass auction controller FSM
-  orchestrator.py                 TCP JSON-line message router FSM
+  orchestrator.py              TCP JSON-line message router FSM
   recorder.py                  Communication logger FSM
   evaluator.py                 Evaluation component for travel time analysis
 
@@ -88,7 +88,7 @@ memory-bank/
 
 The platform separates five core responsibilities:
 
-- **Execution Layer (Simulator / Pilot)**: Execution module onto which the selected module should be applied, abstracting interfaces specific to the selected simulation / pilot city environment (e.g. SUMO or the Vienna pilot) and exposes state (queue lengths, vehicle positions)
+- **Environment**: A single pluggable environment component per configuration, specified by `"type"` in the `"environment"` config section. Currently `"sumo_simulation"` (SUMO/TraCI) is supported; future types can target real-world pilot deployments. Exposes state (queue lengths, vehicle positions) to Logic Modules via the Orchestrator
 - **Logic Modules**: One or more pluggable modules receive the simulation state and generate control outputs (e.g. traffic signal timing decisions). All modules run each step; their command dicts are merged before being applied
 - **Orchestrator**: Sole orchestrator — creates all sub-components, drives the simulation step loop, and routes JSON-line messages between Simulator, Logic Modules, and Recorder over TCP
 - **Recorder**: Logs all inter-component communication for post-simulation analysis
@@ -125,12 +125,12 @@ stateDiagram-v2
 The components operate in a closed loop, applied to the example scenario of computing traffic signal timing decisions based on SUMO simulation state. The Orchestrator actively orchestrates each iteration:
 
 ```
-1. Orchestrator sends "step" to Simulation
-2. Simulation reads SUMO state (queue lengths, vehicle positions), publishes "traffic_state"
+1. Orchestrator sends "step" to Environment
+2. Environment reads SUMO state (queue lengths, vehicle positions), publishes "traffic_state"
 3. Orchestrator fans "traffic_state" out to all Logic Modules simultaneously
 4. Each Logic Module computes its signal timing decision and publishes "traffic_light_command"
-5. Orchestrator accumulates responses; once all modules have replied, merges commands and sends "apply_and_advance" to Simulation
-6. Simulation applies the merged signal plan and advances one SUMO step
+5. Orchestrator accumulates responses; once all modules have replied, merges commands and sends "apply_and_advance" to Environment
+6. Environment applies the merged signal plan and advances one SUMO step
 7. Recorder logs all messages for post-simulation analysis
 8. Loop repeats at SUMO step rate (~0.1s per step)
 ```
@@ -144,7 +144,7 @@ Messages use a simple JSON envelope:
 ```json
 {
   "sent_at": 1750000000.0,
-  "sender": "simulation",
+  "sender": "environment",
   "target": "logic_module",
   "topic": "traffic_state",
   "payload": {
@@ -157,11 +157,11 @@ Messages use a simple JSON envelope:
 
 Topics define the message contract (in the currently considered demonstration scenario with SUMO & traffic signal control):
 
-- `"traffic_state"` — Simulation → Logic Module(s) (via Orchestrator fan-out): queue lengths, vehicle counts, signal state
+- `"traffic_state"` — Environment → Logic Module(s) (via Orchestrator fan-out): queue lengths, vehicle counts, signal state
 - `"traffic_light_command"` — Logic Module(s) → Orchestrator: signal phase assignment and timing; one response per module per step
-- `"step"` — Orchestrator → Simulation: begin next measurement-collect iteration
-- `"apply_and_advance"` — Orchestrator → Simulation: apply signal plan and advance one SUMO step
-- `"simulation_started"` / `"simulation_stopped"` — Simulation → Orchestrator: lifecycle signals
+- `"step"` — Orchestrator → Environment: begin next measurement-collect iteration
+- `"apply_and_advance"` — Orchestrator → Environment: apply signal plan and advance one SUMO step
+- `"environment_started"` / `"environment_stopped"` — Environment → Orchestrator: lifecycle signals
 - `"communication"` — Orchestrator → Recorder: mirror of all routed messages
 
 ## System Flowchart
@@ -178,7 +178,7 @@ graph TB
         Start -->|Initialize| Con["Orchestrator<br/>(Orchestrator)"]
         Con -->|Initialize| Rec["Recorder"]
         Con -->|Initialize| LMs["Logic Module(s)"]
-        Con -->|Initialize| Sim["Simulator"]
+        Con -->|Initialize| Sim["Environment"]
     end
 
     startup --> Ready["✓ Pipeline Ready"]
@@ -202,7 +202,7 @@ graph TB
     end
 
     Ready --> loop
-    Sim2 --> Check{Simulation<br/>complete?}
+    Sim2 --> Check{Environment<br/>complete?}
 
     Check -->|No| Con0
     Check -->|Yes| End(["Shutdown & Evaluate"])
@@ -227,10 +227,10 @@ graph TB
 
 The steady-state loop repeats at ~0.1s per cycle and is the core of the control system:
 
-1. **6.1** — Orchestrator sends a `step` command to the Simulator to begin a new iteration
-2. **6.2–6.3** — Simulator reads current SUMO state and publishes `traffic_state`; Orchestrator fans it out to all configured Logic Modules simultaneously
+1. **6.1** — Orchestrator sends a `step` command to the Environment to begin a new iteration
+2. **6.2–6.3** — Environment reads current SUMO state and publishes `traffic_state`; Orchestrator fans it out to all configured Logic Modules simultaneously
 3. **6.4** — Each Logic Module independently computes its signal phase decision and publishes a `traffic_light_command` response (N responses total for N modules)
-4. **6.5** — Orchestrator accumulates responses; once all N modules have replied, it merges their command dicts and sends a single `apply_and_advance` to the Simulator, which applies the merged plan and advances one SUMO step
+4. **6.5** — Orchestrator accumulates responses; once all N modules have replied, it merges their command dicts and sends a single `apply_and_advance` to the Environment, which applies the merged plan and advances one SUMO step
 5. **6.6** — Orchestrator mirrors all messages to Recorder for logging and analysis
 6. **Loop back** to 6.1 if incomplete, or **Shutdown and evaluate** when done
 

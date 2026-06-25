@@ -1,5 +1,52 @@
 # Architectural Decisions
 
+## ADR 2026-06-26: Generalize Simulation to Environment
+
+### Status
+
+Accepted.
+
+### Context
+
+The platform was built with a single concrete simulation environment in mind (SUMO via TraCI), and all
+naming reflected that: the config key was `"simulation"`, the source file was `simulation_sumo.py`,
+the TCP component name was `"simulation"`, and lifecycle topics were `"simulation_started"` /
+`"simulation_stopped"`. This made the framework sound SUMO-specific even though the Orchestrator's
+message contract is fully general and could connect to a real-world pilot city deployment just as
+easily as a microscopic traffic simulator.
+
+### Decision
+
+All references to the "simulation" concept as a component role are replaced by the more general term
+"environment":
+
+- The top-level config key `"simulation"` is renamed to `"environment"`. A mandatory `"type"` field
+  selects the implementation; the only currently supported value is `"sumo"`.
+- The SUMO-specific sub-key `"sumo_details"` is renamed to `"settings"` (type-agnostic; the `"type"` field already
+  identifies the environment). Inner keys are cleaned to `"binary"`, `"config_file"`, and `"label"`.
+- The `"simulation_measurements"` key in `"setup"` is renamed to `"measurements"` for generality.
+- The port key `"simulation"` in `communication.ports` is renamed to `"environment"`.
+- `src/simulation_sumo.py` → `src/environment_sumo.py`; class `Simulation` → `SumoEnvironment`;
+  `NAME = "simulation"` → `NAME = "environment"`.
+- TCP lifecycle topics: `"simulation_started"` → `"environment_started"`;
+  `"simulation_stopped"` → `"environment_stopped"`.
+- Orchestrator: `self.simulation` → `self.environment`; `_configure_simulation` →
+  `_configure_environment`; `_send_step_to_simulation` → `_send_step_to_environment`;
+  `self.simulation_running` → `self.environment_running`. Adds `_ENVIRONMENT_TYPES` dict for
+  type-string → class dispatch (mirrors the existing `_LOGIC_MODULE_TYPES` pattern).
+
+### Consequences
+
+- Exactly one environment is allowed per configuration (unchanged constraint, now explicit in naming).
+- Adding a new environment type (e.g., `"pilot_vienna_live"`) requires only implementing the
+  `"step"` / `"apply_and_advance"` message contract and registering the class in `_ENVIRONMENT_TYPES`.
+- All existing configs must be updated to use `"environment"` / `"sumo"` / `"measurements"` keys —
+  no backward-compatibility shim is provided.
+- The term "environment" accurately covers both simulation environments (SUMO) and real-world pilot
+  city deployments, making the framework's scope clear.
+
+---
+
 ## ADR 2026-05-31: TCP JSON-Line FSM Component Architecture
 
 ### Status

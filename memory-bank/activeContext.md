@@ -1,6 +1,17 @@
 # Active Context
 
-## Current Status (2026-06-25) — Multi-Logic-Module Support Added
+## Current Status (2026-06-26) — Simulation Generalized to Environment
+
+The "simulation" concept is now called "environment" everywhere. The config section `"simulation"`
+is renamed to `"environment"` with a `"type"` field (`"sumo_simulation"` is the only supported
+type). Inner SUMO-specific keys: `"sumo_details"` → `"sumo"` with cleaned sub-keys `"binary"`,
+`"config_file"`, `"label"`. Setup key `"simulation_measurements"` → `"measurements"`. Port key
+`"simulation"` → `"environment"`. Source file `simulation_sumo.py` → `environment_sumo.py`, class
+`Simulation` → `SumoEnvironment`, `NAME = "environment"`. TCP lifecycle topics
+`"simulation_started/stopped"` → `"environment_started/stopped"`. Orchestrator attrs and methods
+renamed accordingly. All 6 configs updated; 69 tests pass.
+
+## Previous Status (2026-06-25) — Multi-Logic-Module Support Added
 
 The Orchestrator now supports an ordered array of logic modules per run. Config key changed from
 `"logic_module"` (object) to `"logic_modules"` (array). The Orchestrator fans `traffic_state` out

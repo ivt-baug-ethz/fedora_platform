@@ -3,7 +3,7 @@
 ```
 fedora_platform/
 ├── src/                           – Core application components (TCP FSM controllers)
-│   ├── simulation_sumo.py         – SUMO/TraCI FSM, vehicle spawning, queue metrics
+│   ├── environment_sumo.py        – SUMO/TraCI environment FSM, vehicle spawning, queue metrics
 │   ├── controller_fixed_cycle.py  – Fixed-cycle traffic light controller FSM
 │   ├── controller_max_pressure.py – Max-pressure auction controller FSM
 │   ├── controller_priority_pass.py – Priority Pass (Vienna pilot) controller FSM
@@ -99,23 +99,24 @@ fedora_platform/
 
 ### Core Application Components (`src/`)
 
-**simulation_sumo.py**
+**environment_sumo.py**
 
-- Manages SUMO/TraCI connection lifecycle
+- Implements the `sumo_simulation` environment type: manages SUMO/TraCI connection lifecycle
 - Passive step loop: waits for `"step"` message from Orchestrator before each iteration; does not drive itself
 - Spawns vehicles, reads traffic state, and applies traffic light commands via `"apply_and_advance"` messages
 - Accepts `lane_measurements_enabled` list from Orchestrator (populated from logic module requirements) — no measurement config needed in JSON
-- Implements FSM for simulation control flow (CREATED → CONFIGURED → READY → RUNNING → STOPPED)
+- Implements FSM lifecycle (CREATED → CONFIGURED → READY → RUNNING → STOPPED); `NAME = "environment"`
 - Publishes traffic metrics (queue lengths, vehicle positions) as JSON messages over TCP
 
 **orchestrator.py**
 
-- **Platform orchestrator**: reads the full JSON configuration and creates Recorder, LogicModule, and Simulation internally
+- **Platform orchestrator**: reads the full JSON configuration and creates Recorder, LogicModule, and Environment internally
 - Routes JSON-line TCP messages between application components
-- Drives the simulation step loop by intercepting `simulation_started`, `traffic_light_command`, and `simulation_stopped` topics
-- Sends `"step"` and `"apply_and_advance"` commands to Simulation to control each iteration
-- Queries each logic module's `get_required_measurements()` to determine which metrics the Simulation should collect; no user configuration of measurement types needed
+- Drives the environment step loop by intercepting `environment_started`, `traffic_light_command`, and `environment_stopped` topics
+- Sends `"step"` and `"apply_and_advance"` commands to Environment to control each iteration
+- Queries each logic module's `get_required_measurements()` to determine which metrics the Environment should collect; no user configuration of measurement types needed
 - Mirrors all traffic for logging to Recorder component
+- Supports pluggable environment types via `_ENVIRONMENT_TYPES` dict (currently: `"sumo_simulation"`)
 
 **controller_fixed_cycle.py**
 

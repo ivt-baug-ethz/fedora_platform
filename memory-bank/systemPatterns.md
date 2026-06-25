@@ -141,38 +141,39 @@ STOPPED --> CONFIGURED: configure()
 The main application is built from modular FSM-based components in `src/`, orchestrated by the Orchestrator:
 
 - **`run.py`** (root level) — Thin entry point (~70 lines): parses CLI args, creates `Orchestrator`, calls `start()` / `wait_until_done()`, runs Evaluator
-- **`src/orchestrator.py`** — **Platform orchestrator**: reads full JSON config, creates and starts Recorder/Controller/Simulation, drives the simulation step loop via `"step"` and `"apply_and_advance"` messages
-- **`src/simulation_sumo.py`** — Passive simulation wrapper: waits for `"step"` command from Orchestrator before each iteration; measurement types injected by Orchestrator from controller requirements
+- **`src/orchestrator.py`** — **Platform orchestrator**: reads full JSON config, creates and starts Recorder/LogicModule/Environment, drives the environment step loop via `"step"` and `"apply_and_advance"` messages; dispatches environment class by `"type"` via `_ENVIRONMENT_TYPES`
+- **`src/environment_sumo.py`** — `SumoEnvironment` (`NAME = "environment"`): passive SUMO wrapper, waits for `"step"` command from Orchestrator before each iteration; measurement types injected by Orchestrator from controller requirements; type key `"sumo_simulation"`
 - **`src/controller_fixed_cycle.py`** — Fixed-cycle controller FSM; `get_required_measurements()` returns `[]`
 - **`src/controller_max_pressure.py`** — Max-pressure controller FSM; `get_required_measurements()` returns `["queue_lengths"]` or `["weighted_queue_lengths"]` based on bidding_strategy
 - **`src/controller_priority_pass.py`** — Priority Pass controller FSM; `get_required_measurements()` returns queue measurement + `"upp_bids"`
 - **`src/recorder.py`** — Listens on TCP, logs routed communication to files in `logs/`
 
-### Simulation Step Loop (Orchestrator-Driven)
+### Environment Step Loop (Orchestrator-Driven)
 
 ```
-Orchestrator.start() → recorder.start() → logic_module[0].start() → ... → simulation.start()
+Orchestrator.start() → recorder.start() → logic_module[0].start() → ... → environment.start()
     ↓
-simulation sends "simulation_started"
+environment sends "environment_started"
     ↓
-Orchestrator._route() intercepts → sends "step" to simulation
+Orchestrator._route() intercepts → sends "step" to environment
     ↓
-simulation collects measurements → sends "traffic_state" to orchestrator
+environment collects measurements → sends "traffic_state" to orchestrator
     ↓
 Orchestrator intercepts "traffic_state" → fans out to ALL logic modules
     ↓
 each logic module computes plan → sends "traffic_light_command" to orchestrator
     ↓
 Orchestrator accumulates responses; once all N modules replied:
-  → merges command dicts → sends "apply_and_advance" + next "step" to simulation
+  → merges command dicts → sends "apply_and_advance" + next "step" to environment
     ↓
-simulation applies commands → advances SUMO → collects next measurements → ...
+environment applies commands → advances SUMO → collects next measurements → ...
     ↓
-simulation sends "simulation_stopped" → Orchestrator.done_event.set()
+environment sends "environment_stopped" → Orchestrator.done_event.set()
 ```
 
-Config supports N logic modules via `"logic_modules": [...]` array. Single-module case (N=1)
-is behaviorally identical to the previous single-module design.
+Config supports N logic modules via `"logic_modules": [...]` array and exactly one environment via
+`"environment": {"type": "sumo_simulation", ...}`. Adding a new environment type requires
+implementing the `"step"` / `"apply_and_advance"` handler contract and registering in `_ENVIRONMENT_TYPES`.
 
 All components use explicit state constants and transition maps. Runtime messages are JSON objects
 sent over localhost TCP, terminated by newlines. Configuration is loaded from `configurations/`
