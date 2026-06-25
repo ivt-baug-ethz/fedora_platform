@@ -61,8 +61,10 @@ def main() -> None:
 
     # extract names used for result directory paths and priority-plot visibility
     scenario = str(config["scenario"])
-    logic_module_name = str(config["logic_module"]["type"])
-    show_priority = logic_module_name == "controller_priority_pass"
+    logic_module_name = str(config["logic_modules"][0]["type"])
+    show_priority = any(
+        m.get("type") == "controller_priority_pass" for m in config["logic_modules"]
+    )
 
     orchestrator = Orchestrator(config)
 

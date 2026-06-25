@@ -72,15 +72,17 @@
     "logs_dir": "logs/vienna_max_pressure",
     "log_type": "txt"
   },
-  "logic_module": {
-    "type": "controller_max_pressure",
-    "max_pressure": {
-      "transition_duration": 3,
-      "bidding_strategy": "phase_queue_length",
-      "auction_winner": "highest_bid",
-      "min_green_duration": 3,
-      "max_green_duration": 60,
-      "auction_suspend_duration": 4
+  "logic_modules": [
+    {
+      "type": "controller_max_pressure",
+      "max_pressure": {
+        "transition_duration": 3,
+        "bidding_strategy": "phase_queue_length",
+        "auction_winner": "highest_bid",
+        "min_green_duration": 3,
+        "max_green_duration": 60,
+        "auction_suspend_duration": 4
+      }
     }
-  }
+  ]
 }

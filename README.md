@@ -89,8 +89,8 @@ memory-bank/
 The platform separates five core responsibilities:
 
 - **Execution Layer (Simulator / Pilot)**: Execution module onto which the selected module should be applied, abstracting interfaces specific to the selected simulation / pilot city environment (e.g. SUMO or the Vienna pilot) and exposes state (queue lengths, vehicle positions)
-- **Controller / Optimization Modules**: Depending on the type of module connected to the execution layer, specific simulator states are read and control outputs are generated (e.g. traffic signal timing decisions)
-- **Orchestrator**: Sole orchestrator — creates all sub-components, drives the simulation step loop, and routes JSON-line messages between Simulator, Controller, and Recorder over TCP
+- **Logic Modules**: One or more pluggable modules receive the simulation state and generate control outputs (e.g. traffic signal timing decisions). All modules run each step; their command dicts are merged before being applied
+- **Orchestrator**: Sole orchestrator — creates all sub-components, drives the simulation step loop, and routes JSON-line messages between Simulator, Logic Modules, and Recorder over TCP
 - **Recorder**: Logs all inter-component communication for post-simulation analysis
 - **Storage**: Persists records and logs to text files (additional backends planned)
 
@@ -127,10 +127,10 @@ The components operate in a closed loop, applied to the example scenario of comp
 ```
 1. Orchestrator sends "step" to Simulation
 2. Simulation reads SUMO state (queue lengths, vehicle positions), publishes "traffic_state"
-3. Orchestrator routes "traffic_state" to Controller
-4. Controller computes next signal timing, publishes "traffic_light_command"
-5. Orchestrator intercepts command, sends "apply_and_advance" to Simulation
-6. Simulation applies signal plan and advances one SUMO step
+3. Orchestrator fans "traffic_state" out to all Logic Modules simultaneously
+4. Each Logic Module computes its signal timing decision and publishes "traffic_light_command"
+5. Orchestrator accumulates responses; once all modules have replied, merges commands and sends "apply_and_advance" to Simulation
+6. Simulation applies the merged signal plan and advances one SUMO step
 7. Recorder logs all messages for post-simulation analysis
 8. Loop repeats at SUMO step rate (~0.1s per step)
 ```
@@ -157,8 +157,8 @@ Messages use a simple JSON envelope:
 
 Topics define the message contract (in the currently considered demonstration scenario with SUMO & traffic signal control):
 
-- `"traffic_state"` — Simulation → Controller (via Orchestrator): queue lengths, vehicle counts, signal state
-- `"traffic_light_command"` — Controller → Orchestrator: signal phase assignment and timing
+- `"traffic_state"` — Simulation → Logic Module(s) (via Orchestrator fan-out): queue lengths, vehicle counts, signal state
+- `"traffic_light_command"` — Logic Module(s) → Orchestrator: signal phase assignment and timing; one response per module per step
 - `"step"` — Orchestrator → Simulation: begin next measurement-collect iteration
 - `"apply_and_advance"` — Orchestrator → Simulation: apply signal plan and advance one SUMO step
 - `"simulation_started"` / `"simulation_stopped"` — Simulation → Orchestrator: lifecycle signals
@@ -177,7 +177,7 @@ graph TB
         direction LR
         Start -->|Initialize| Con["Orchestrator<br/>(Orchestrator)"]
         Con -->|Initialize| Rec["Recorder"]
-        Con -->|Initialize| Ctrl["Controller"]
+        Con -->|Initialize| LMs["Logic Module(s)"]
         Con -->|Initialize| Sim["Simulator"]
     end
 
@@ -187,16 +187,16 @@ graph TB
         direction TB
         Con0["6.1 Orchestrator<br/>Sends step"]
         Sim1["6.2 Simulator<br/>Reads state"]
-        Con1["6.3 Orchestrator<br/>Routes"]
-        Ctrl1["6.4 Controller<br/>Computes phase"]
+        Con1["6.3 Orchestrator<br/>Fan-out"]
+        LM1["6.4 Logic Module(s)<br/>Compute phase (×N)"]
         Sim2["6.5 Simulator<br/>Applies & advances"]
         Rec1["6.6 Recorder<br/>Logs messages"]
 
         Con0 -->|step| Sim1
         Sim1 -->|traffic_state| Con1
-        Con1 -->|Route to| Ctrl1
-        Ctrl1 -->|traffic_light_command| Con1
-        Con1 -->|apply_and_advance| Sim2
+        Con1 -->|fan-out to all| LM1
+        LM1 -->|logic commands ×N| Con1
+        Con1 -->|apply_and_advance<br/>merged commands| Sim2
         Con1 -->|Mirror| Rec1
         Sim2 -->|Done| Con0
     end
@@ -214,7 +214,8 @@ graph TB
     style Sim1 stroke:#fb8500,stroke-width:1.5px,color:#fb8500
     style Sim2 stroke:#fb8500,stroke-width:1.5px,color:#fb8500
     style Con1 stroke:#8957e5,stroke-width:1.5px,color:#8957e5
-    style Ctrl1 stroke:#1f6feb,stroke-width:1.5px,color:#1f6feb
+    style LM1 stroke:#1f6feb,stroke-width:1.5px,color:#1f6feb
+    style LMs stroke:#1f6feb,stroke-width:1.5px,color:#1f6feb
     style Rec1 stroke:#d1242f,stroke-width:1.5px,color:#d1242f
     style Check stroke:#fb8500,stroke-width:2px,color:#fb8500
     style End stroke:#d1242f,stroke-width:2px,color:#d1242f
@@ -227,13 +228,13 @@ graph TB
 The steady-state loop repeats at ~0.1s per cycle and is the core of the control system:
 
 1. **6.1** — Orchestrator sends a `step` command to the Simulator to begin a new iteration
-2. **6.2–6.3** — Simulator reads current SUMO state and publishes `traffic_state`; Orchestrator routes it to Controller
-3. **6.4** — Controller computes the optimal signal phase and publishes `traffic_light_command`
-4. **6.5** — Orchestrator intercepts the command and sends `apply_and_advance` to Simulator, which applies the signal plan and advances one SUMO step
+2. **6.2–6.3** — Simulator reads current SUMO state and publishes `traffic_state`; Orchestrator fans it out to all configured Logic Modules simultaneously
+3. **6.4** — Each Logic Module independently computes its signal phase decision and publishes a `traffic_light_command` response (N responses total for N modules)
+4. **6.5** — Orchestrator accumulates responses; once all N modules have replied, it merges their command dicts and sends a single `apply_and_advance` to the Simulator, which applies the merged plan and advances one SUMO step
 5. **6.6** — Orchestrator mirrors all messages to Recorder for logging and analysis
 6. **Loop back** to 6.1 if incomplete, or **Shutdown and evaluate** when done
 
-This closed-loop control enables adaptive traffic signal optimization. The phase computation algorithm depends on the selected logic module strategy: fixed-cycle timing, max-pressure auction, or priority-pass optimization.
+This closed-loop control enables adaptive traffic signal optimization. A single logic module runs per step by default; multiple modules can be stacked by listing them in the `"logic_modules"` array in the configuration. Each module's phase computation is independent — the merged command dict is sent as a single `apply_and_advance` after all modules respond.
 
 ## Running Scenarios
 

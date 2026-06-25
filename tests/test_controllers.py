@@ -460,13 +460,14 @@ class TestOrchestratorControllerInstantiation(unittest.TestCase):
     """Verify the Orchestrator creates the correct controller class for each type string."""
 
     def _make_orchestrator_for_type(self, controller_type: str):
-        """Build a minimal Orchestrator and call _configure_logic_module directly."""
+        """Build a minimal Orchestrator and call _configure_logic_modules directly."""
         from orchestrator import Orchestrator
 
         orchestrator = Orchestrator.__new__(Orchestrator)
         orchestrator.host = "127.0.0.1"
         orchestrator.port = 0
-        orchestrator.logic_module = None
+        orchestrator.logic_modules = []
+        orchestrator._logic_module_names = []
 
         communication = {"ports": {"logic_module": 0}}
         setup = {"random_seed": 42, "traffic_lights": []}
@@ -497,8 +498,8 @@ class TestOrchestratorControllerInstantiation(unittest.TestCase):
                 "trade_off": 0.5,
             }
 
-        orchestrator._configure_logic_module(communication, setup, ctrl_section)
-        return orchestrator.logic_module
+        orchestrator._configure_logic_modules(communication, setup, [ctrl_section])
+        return orchestrator.logic_modules[0]
 
     def test_fixed_cycle_instantiation(self) -> None:
         ctrl = self._make_orchestrator_for_type("controller_fixed_cycle")

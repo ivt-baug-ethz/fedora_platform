@@ -1,6 +1,16 @@
 # Active Context
 
-## Current Status (2026-06-25) — Inline Comments + Logic Module Rename Complete
+## Current Status (2026-06-25) — Multi-Logic-Module Support Added
+
+The Orchestrator now supports an ordered array of logic modules per run. Config key changed from
+`"logic_module"` (object) to `"logic_modules"` (array). The Orchestrator fans `traffic_state` out
+to all modules simultaneously, accumulates all `traffic_light_command` responses per step, merges
+their command dicts, and then sends a single `apply_and_advance`. Single-module behavior is
+unchanged. All 6 JSON config files updated; all 69 tests pass; pylint at 9.73/10.
+
+---
+
+## Previous Status (2026-06-25) — Inline Comments + Logic Module Rename Complete
 
 Repository uses a Orchestrator-driven architecture. The Orchestrator is the sole entry-point: it reads
 the full JSON config, creates and starts Recorder/Controller/Simulation, and drives the simulation step

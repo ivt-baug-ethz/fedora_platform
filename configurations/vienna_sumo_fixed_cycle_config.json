@@ -72,28 +72,30 @@
     "logs_dir": "logs/vienna_fixed_cycle",
     "log_type": "txt"
   },
-  "logic_module": {
-    "type": "controller_fixed_cycle",
-    "fixed_cycle": {
-      "transition_duration": 3,
-      "phase_durations": [
-        29,
-        21,
-        29,
-        21
-      ],
-      "default_time_delay": 0,
-      "time_delays": {
-        "J25": 0,
-        "J26": 25,
-        "J27": 0,
-        "J28": 25,
-        "J29": 0,
-        "J30": 0,
-        "J31": 25,
-        "J32": 25,
-        "J33": 0
+  "logic_modules": [
+    {
+      "type": "controller_fixed_cycle",
+      "fixed_cycle": {
+        "transition_duration": 3,
+        "phase_durations": [
+          29,
+          21,
+          29,
+          21
+        ],
+        "default_time_delay": 0,
+        "time_delays": {
+          "J25": 0,
+          "J26": 25,
+          "J27": 0,
+          "J28": 25,
+          "J29": 0,
+          "J30": 0,
+          "J31": 25,
+          "J32": 25,
+          "J33": 0
+        }
       }
     }
-  }
+  ]
 }
