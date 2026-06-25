@@ -1,7 +1,9 @@
+"""TCP communication logger — appends all received messages to a JSONL log file."""
+
 from __future__ import annotations
 
-import os
 import json
+import os
 import socket
 import threading
 import time
@@ -10,7 +12,7 @@ from typing import Any, TextIO
 
 
 class Recorder:
-    """Listen on TCP and append every received message to a JSON-lines txt file."""
+    """Listen on TCP and append every received message to a JSON-lines log file."""
 
     NAME = "recorder"
     STATE_CREATED = "created"
@@ -50,13 +52,25 @@ class Recorder:
     }
 
     def __init__(self, configuration: dict[str, Any]):
-        """Create the recorder in the CREATED state."""
+        """Initialize the recorder in the CREATED state.
+
+        Args:
+            configuration: Recorder configuration dict with port, logs_dir, and log_type keys.
+        """
         self.configuration = configuration
         self.state = self.STATE_CREATED
+
+        # network endpoint (populated in configure())
         self.host = "127.0.0.1"
         self.port = 0
+
+        # log file settings (populated in configure())
         self.log_type = "txt"
+        self.logs_dir: Path = Path(".")
+        self.log_path: Path = Path(".")
         self.log_file: TextIO | None = None
+
+        # TCP server and thread control
         self.server_socket: socket.socket | None = None
         self.server_thread: threading.Thread | None = None
         self.stop_event = threading.Event()
@@ -64,26 +78,29 @@ class Recorder:
         self.last_error: str | None = None
 
     def configure(self) -> "Recorder":
-        """Load the TCP endpoint and log path, then enter CONFIGURED."""
+        """Load the TCP endpoint and log file path, then enter CONFIGURED.
+
+        Returns:
+            self, for method chaining.
+        """
         self._transition("configure")
+
+        # read TCP endpoint from config
         self.host = str(self.configuration.get("host", "127.0.0.1"))
         self.port = int(self.configuration["port"])
         self.log_type = str(self.configuration.get("log_type", "txt")).lower()
+
         if self.log_type != "txt":
-            # TODO: Add additional recorder backends such as sqlite/mysql-style
-            # databases or structured JSONL sinks when needed.
+            # TODO: Add additional recorder backends such as sqlite or structured JSONL sinks.
             raise ValueError(f"Unsupported recorder log_type: {self.log_type}")
 
-        # load the logs directory from the configuration
         logs_dir_raw = self.configuration.get("logs_dir")
         if logs_dir_raw is None:
             raise ValueError("Recorder configuration must include a 'logs_dir' key.")
 
-        # create the logs directory if it doesn't exist
+        # create the log directory and set the output file path
         os.makedirs(logs_dir_raw, exist_ok=True)
         self.logs_dir = Path(logs_dir_raw)
-
-        # set communication log path based on the logs_dir
         self.log_path = self.logs_dir / "communication_log.txt"
 
         return self
@@ -92,45 +109,69 @@ class Recorder:
         """Open the log file and TCP listener, then enter RUNNING."""
         if self.state == self.STATE_CREATED:
             self.configure()
+
         if self.state == self.STATE_CONFIGURED:
+            # open log file in append mode so previous runs are preserved
             self.log_file = self.log_path.open("a", encoding="utf-8")
             self._open_server()
             self._transition("prepare")
+
         self._transition("start")
 
     def stop(self) -> None:
         """Stop the listener, close the log file, and enter STOPPED."""
         if self.state == self.STATE_STOPPED:
             return
+
+        # signal handler threads to exit before closing sockets
         self.stop_event.set()
         if self.server_socket is not None:
             self.server_socket.close()
+
+        # flush and close the log file
         if self.log_file is not None:
             self.log_file.close()
+
         self._transition("stop")
 
     def fail(self, error: Exception | str) -> None:
-        """Record an unrecoverable error and enter FAILED."""
+        """Record an unrecoverable error and enter FAILED.
+
+        Args:
+            error: The exception or message describing the failure.
+        """
         self.last_error = str(error)
         if self.state != self.STATE_FAILED:
             self._transition("fail")
 
     def _transition(self, event: str) -> None:
+        """Apply a lifecycle event and advance the FSM state.
+
+        Args:
+            event: Transition event name (e.g. "configure", "start", "stop").
+        """
         next_state = self.TRANSITIONS.get(self.state, {}).get(event)
         if next_state is None:
             raise RuntimeError(f"Recorder cannot {event} from {self.state}")
+
         self.state = next_state
 
     def _open_server(self) -> None:
+        """Bind and start the TCP listener in a background daemon thread."""
         self.stop_event.clear()
+
+        # SO_REUSEADDR lets the port be reused immediately after a previous run
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.server_socket.bind((self.host, self.port))
         self.server_socket.listen()
+
+        # daemon thread exits automatically when the main process ends
         self.server_thread = threading.Thread(target=self._serve, daemon=True)
         self.server_thread.start()
 
     def _serve(self) -> None:
+        """Accept incoming TCP connections and spawn a handler thread for each."""
         while not self.stop_event.is_set():
             try:
                 assert self.server_socket is not None
@@ -143,21 +184,44 @@ class Recorder:
             thread.start()
 
     def _handle_client(self, client: socket.socket) -> None:
+        """Read JSON-line messages from a single persistent TCP connection.
+
+        Args:
+            client: Accepted client socket.
+        """
+        # 1-second timeout allows the loop to check stop_event without blocking forever
+        client.settimeout(1.0)
+        buffer = b""
         with client:
-            data = b""
-            while True:
-                chunk = client.recv(65536)
-                if not chunk:
+            while not self.stop_event.is_set():
+                try:
+                    chunk = client.recv(65536)
+                except socket.timeout:
+                    continue  # check stop_event and retry
+                except OSError:
                     break
-                data += chunk
-        for line in data.decode("utf-8").splitlines():
-            if line.strip():
-                self._record(json.loads(line))
+                if not chunk:
+                    break  # client closed the connection
+                buffer += chunk
+                # dispatch all complete newline-terminated messages in the buffer
+                while b"\n" in buffer:
+                    line, buffer = buffer.split(b"\n", 1)
+                    line = line.strip()
+                    if line:
+                        self._record(json.loads(line))
 
     def _record(self, message: dict[str, Any]) -> None:
+        """Write a timestamped message record to the log file.
+
+        Args:
+            message: Decoded JSON message dict to persist.
+        """
+        # wrap the original message with a wall-clock log timestamp
         record = {"logged_at": time.time(), "message": message}
         with self.write_lock:
             if self.log_file is None:
                 return
+
+            # flush immediately so records survive an unclean process exit
             self.log_file.write(json.dumps(record, sort_keys=True) + "\n")
             self.log_file.flush()

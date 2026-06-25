@@ -7,11 +7,11 @@ fedora_platform/
 │   ├── controller_fixed_cycle.py  – Fixed-cycle traffic light controller FSM
 │   ├── controller_max_pressure.py – Max-pressure auction controller FSM
 │   ├── controller_priority_pass.py – Priority Pass (Vienna pilot) controller FSM
-│   ├── connector.py               – TCP JSON-line message router FSM
+│   ├── orchestrator.py               – TCP JSON-line message router FSM and platform orchestrator
 │   ├── recorder.py                – TCP communication logger FSM
 │   └── evaluator.py               – Evaluation component for delay analysis and visualization
 │
-├── run.py                         – Entry point: loads configuration and starts components
+├── run.py                         – Thin entry point: parses CLI args and starts the Orchestrator
 ├── evaluate.py                    – Standalone script to evaluate simulation results
 │
 ├── tests/                         – Unit and integration tests
@@ -33,8 +33,7 @@ fedora_platform/
 │   │       ├── config.sumocfg     – SUMO configuration
 │   │       ├── network.net.xml    – SUMO network definition
 │   │       ├── demand.xml         – Vehicle route definitions
-│   │       ├── phase_bidder_lanes.json    – Per-phase incoming lanes
-│   │       ├── phase_exit_lanes.json      – Per-phase outgoing lanes
+│   │       ├── phase_inc_lanes.json    – Per-phase incoming lanes
 │   │       ├── route_*.json       – Route metadata (distances, durations, etc.)
 │   │       └── possible_trips.xml – Trip source data
 │   ├── pilot_vienna/              – Vienna pilot scenario skeleton
@@ -49,7 +48,7 @@ fedora_platform/
 │   ├── demo_priority_pass/        – Demo priority pass run logs
 │   │   ├── communication_log.txt  – All inter-component messages
 │   │   └── vehicle_log.jsonl      – Vehicle arrival/departure events
-│   └── {scenario}_{controller}/   – Logs from other scenario/controller combinations
+│   └── {scenario}_{logic_module}/   – Logs from other scenario/controller combinations
 │
 ├── results/                        – Evaluation results (auto-generated, .gitignored)
 │   ├── demo/
@@ -63,7 +62,7 @@ fedora_platform/
 │   │   ├── priority_pass/
 │   │   ├── max_pressure/
 │   │   └── fixed_cycle/
-│   └── {scenario}/{controller}/   – Evaluation output structure
+│   └── {scenario}/{logic_module}/   – Evaluation output structure
 │
 ├── docs/                          – LLM-maintained documentation (MANDATORY)
 │   ├── STRUCTURE.md               – This file (directory tree and responsibilities)
@@ -103,15 +102,19 @@ fedora_platform/
 **simulation_sumo.py**
 
 - Manages SUMO/TraCI connection lifecycle
-- Spawns vehicles, reads traffic state, and applies traffic light commands
+- Passive step loop: waits for `"step"` message from Orchestrator before each iteration; does not drive itself
+- Spawns vehicles, reads traffic state, and applies traffic light commands via `"apply_and_advance"` messages
+- Accepts `lane_measurements_enabled` list from Orchestrator (populated from logic module requirements) — no measurement config needed in JSON
 - Implements FSM for simulation control flow (CREATED → CONFIGURED → READY → RUNNING → STOPPED)
 - Publishes traffic metrics (queue lengths, vehicle positions) as JSON messages over TCP
 
-**connector.py**
+**orchestrator.py**
 
+- **Platform orchestrator**: reads the full JSON configuration and creates Recorder, LogicModule, and Simulation internally
 - Routes JSON-line TCP messages between application components
-- Maintains persistent TCP connections to all components (Simulation, Controller, Recorder)
-- Implements FSM for connection state management
+- Drives the simulation step loop by intercepting `simulation_started`, `traffic_light_command`, and `simulation_stopped` topics
+- Sends `"step"` and `"apply_and_advance"` commands to Simulation to control each iteration
+- Queries each logic module's `get_required_measurements()` to determine which metrics the Simulation should collect; no user configuration of measurement types needed
 - Mirrors all traffic for logging to Recorder component
 
 **controller_fixed_cycle.py**
@@ -137,7 +140,7 @@ fedora_platform/
 
 **recorder.py**
 
-- Listens on dedicated TCP port for message copies from Connector
+- Listens on dedicated TCP port for message copies from Orchestrator
 - Logs all inter-component communication (traffic, commands, state) to text files
 - Writes logs to `logs/` directory for post-simulation analysis
 - Implements FSM for recorder state transitions
@@ -154,10 +157,10 @@ fedora_platform/
 
 **run.py**
 
-- Loads configuration from `configurations/` directory (JSON format)
-- Initializes all FSM components (Simulation, Controller, Connector, Recorder)
-- Orchestrates component startup order and lifecycle transitions
-- Handles inter-component communication setup (TCP host/port configuration)
+- Thin entry point (~70 lines): parses CLI arguments (`CONFIG_FILE`, `--skip-evaluation`)
+- Creates a `Orchestrator` with the full config dict and calls `start()` / `wait_until_done()`
+- Runs the `Evaluator` after the simulation completes (unless `--skip-evaluation` is passed)
+- All component lifecycle management is handled by the Orchestrator internally
 
 ### Structural Rules
 

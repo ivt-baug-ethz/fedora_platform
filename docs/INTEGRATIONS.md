@@ -14,11 +14,11 @@
 ## Local TCP Messaging
 
 - The platform uses localhost JSON-line TCP messages between `Simulation`, the active controller,
-  `Connector`, and `Recorder`.
+  `Orchestrator`, and `Recorder`.
 - The active controller is selected with `controller.type` in the configuration JSON; supported
   values are `fixed_cycle`, `max_pressure`, and `priority_pass`.
 - Default ports are configured in the configuration JSON:
-  - Connector: `127.0.0.1:51000`
+  - Orchestrator: `127.0.0.1:51000`
   - Simulation: `127.0.0.1:51001`
   - Controller: `127.0.0.1:51002`
   - Recorder: `127.0.0.1:51003`

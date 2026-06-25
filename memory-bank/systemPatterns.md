@@ -138,15 +138,37 @@ STOPPED --> CONFIGURED: configure()
 
 ## Core Application Pattern (TCP FSM Controllers)
 
-The main application is now built from modular FSM-based components in `src/`:
+The main application is built from modular FSM-based components in `src/`, orchestrated by the Orchestrator:
 
-- **`run.py`** (root level) — Entry point that loads configuration and wires component lifecycle
-- **`src/simulation_sumo.py`** — Owns the TraCI connection, manages SUMO GUI, computes queue metrics, and applies traffic-light commands
-- **`src/controller_fixed_cycle.py`** — Fixed-cycle controller FSM, computes phase commands from simulation messages
-- **`src/controller_max_pressure.py`** — Max-pressure controller FSM (auction-based)
-- **`src/controller_priority_pass.py`** — Priority Pass controller FSM (Vienna pilot implementation)
-- **`src/connector.py`** — TCP JSON-line message router FSM, forwards all inter-component communication
+- **`run.py`** (root level) — Thin entry point (~70 lines): parses CLI args, creates `Orchestrator`, calls `start()` / `wait_until_done()`, runs Evaluator
+- **`src/orchestrator.py`** — **Platform orchestrator**: reads full JSON config, creates and starts Recorder/Controller/Simulation, drives the simulation step loop via `"step"` and `"apply_and_advance"` messages
+- **`src/simulation_sumo.py`** — Passive simulation wrapper: waits for `"step"` command from Orchestrator before each iteration; measurement types injected by Orchestrator from controller requirements
+- **`src/controller_fixed_cycle.py`** — Fixed-cycle controller FSM; `get_required_measurements()` returns `[]`
+- **`src/controller_max_pressure.py`** — Max-pressure controller FSM; `get_required_measurements()` returns `["queue_lengths"]` or `["weighted_queue_lengths"]` based on bidding_strategy
+- **`src/controller_priority_pass.py`** — Priority Pass controller FSM; `get_required_measurements()` returns queue measurement + `"upp_bids"`
 - **`src/recorder.py`** — Listens on TCP, logs routed communication to files in `logs/`
+
+### Simulation Step Loop (Orchestrator-Driven)
+
+```
+Orchestrator.start() → recorder.start() → controller.start() → simulation.start()
+    ↓
+simulation sends "simulation_started"
+    ↓
+Orchestrator._route() intercepts → sends "step" to simulation
+    ↓
+simulation collects measurements → sends "traffic_state" to orchestrator
+    ↓
+Orchestrator routes "traffic_state" to controller
+    ↓
+controller computes plan → sends "traffic_light_command" to orchestrator
+    ↓
+Orchestrator._route() intercepts → sends "apply_and_advance" + next "step" to simulation
+    ↓
+simulation applies commands → advances SUMO → collects next measurements → ...
+    ↓
+simulation sends "simulation_stopped" → Orchestrator.done_event.set()
+```
 
 All components use explicit state constants and transition maps. Runtime messages are JSON objects
 sent over localhost TCP, terminated by newlines. Configuration is loaded from `configurations/`
