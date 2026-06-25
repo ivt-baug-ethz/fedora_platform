@@ -5,14 +5,14 @@
     "host": "127.0.0.1",
     "ports": {
       "orchestrator": 51000,
-      "simulation": 51001,
+      "environment": 51001,
       "recorder": 51003,
       "logic_module": 51002
     },
     "socket_timeout": 2.0
   },
   "setup": {
-    "simulation_measurements": {
+    "measurements": {
       "sumo": {
         "lane_measurements": {
           "pressure_lanes": "phase_inc_lanes.json"
@@ -40,7 +40,8 @@
     ],
     "controller_response_timeout_seconds": 0.05
   },
-  "simulation": {
+  "environment": {
+    "type": "sumo",
     "demand": {
       "traci_spawning_active": true,
       "route_probabilities_file": "route_probabilities.json",
@@ -62,10 +63,10 @@
         ]
       }
     },
-    "sumo_details": {
-      "sumo_binary": "sumo-gui",
-      "sumo_config_file": "config.sumocfg",
-      "sumo_label": "vienna_max_pressure"
+    "settings": {
+      "binary": "sumo-gui",
+      "config_file": "config.sumocfg",
+      "label": "vienna_max_pressure"
     }
   },
   "recorder": {

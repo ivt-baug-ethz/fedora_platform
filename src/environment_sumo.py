@@ -1,4 +1,4 @@
-"""SUMO simulation FSM — drives the SUMO traffic simulator via TraCI."""
+"""SUMO environment FSM — connects the FEDORA platform to the SUMO traffic simulator."""
 
 from __future__ import annotations
 
@@ -16,13 +16,13 @@ from typing import Any, TextIO
 import traci
 
 
-class Simulation:
+class SumoEnvironment:
     """Run SUMO via TraCI and publish traffic state to the controller over TCP.
 
     Implements a finite-state machine lifecycle: CREATED → CONFIGURED → READY → RUNNING → STOPPED.
     """
 
-    NAME = "simulation"
+    NAME = "environment"
     STATE_CREATED = "created"
     STATE_CONFIGURED = "configured"
     STATE_READY = "ready"
@@ -68,10 +68,10 @@ class Simulation:
     }
 
     def __init__(self, configuration: dict[str, Any], scenario_path: Path) -> None:
-        """Initialize the simulation in the CREATED state.
+        """Initialize the environment in the CREATED state.
 
         Args:
-            configuration: Flat simulation configuration dict assembled by the Orchestrator.
+            configuration: Flat environment configuration dict assembled by the Orchestrator.
             scenario_path: Directory containing the scenario's SUMO files.
         """
         self.configuration = configuration
@@ -142,7 +142,7 @@ class Simulation:
         self.vehicle_log_lock = threading.Lock()
         self.vehicle_arrivals: dict[str, float] = {}
 
-    def configure(self) -> "Simulation":
+    def configure(self) -> "SumoEnvironment":
         """Load all runtime settings from the configuration dict and enter CONFIGURED.
 
         Returns:
@@ -155,7 +155,7 @@ class Simulation:
         orchestrator = self.configuration["orchestrator"]
         self.orchestrator = (str(orchestrator["host"]), int(orchestrator["port"]))
 
-        sumo_details = dict(self.configuration.get("sumo_details", {}))
+        sumo_cfg = dict(self.configuration.get("settings", {}))
         network = dict(self.configuration.get("network", {}))
         demand = dict(self.configuration.get("demand", {}))
         visualization = dict(self.configuration.get("visualization", {}))
@@ -163,20 +163,20 @@ class Simulation:
         # Sensor range and weighted-position bracket parameters
         measurement_details = (
             self.configuration.get("setup", {})
-            .get("simulation_measurements", {})
+            .get("measurements", {})
             .get("sumo", {})
             .get("measurement_details", {})
         )
 
         # SUMO process settings
         self.sumo_binary = self._resolve_sumo_binary(
-            str(sumo_details.get("sumo_binary", "sumo-gui"))
+            str(sumo_cfg.get("binary", "sumo-gui"))
         )
         self.sumo_config_file = self._resolve_path(
-            str(sumo_details["sumo_config_file"])
+            str(sumo_cfg["config_file"])
         )
-        self.sumo_label = str(sumo_details.get("sumo_label", "simple_b"))
-        self.random.seed(int(sumo_details.get("random_seed", 42)))
+        self.sumo_label = str(sumo_cfg.get("label", "simple_b"))
+        self.random.seed(int(sumo_cfg.get("random_seed", 42)))
 
         self.traffic_lights = list(network.get("traffic_lights", []))
         self.traci_spawning_active = bool(demand.get("traci_spawning_active", True))
@@ -256,7 +256,7 @@ class Simulation:
             # open vehicle log in write mode to start fresh for each run
             self.vehicle_log_file = self.vehicle_log_path.open("w", encoding="utf-8")
 
-            # launch SUMO process; sends simulation_started to kick off the loop
+            # launch SUMO process; sends environment_started to kick off the loop
             self._open_sumo()
             self._transition("prepare")
 
@@ -298,7 +298,7 @@ class Simulation:
         self._transition("stop")
 
     def wait_until_done(self) -> None:
-        """Block the calling thread until the simulation loop finishes."""
+        """Block the calling thread until the environment loop finishes."""
         self.done_event.wait()
         if self.run_thread is not None:
             self.run_thread.join(timeout=5.0)
@@ -322,7 +322,7 @@ class Simulation:
         """
         next_state = self.TRANSITIONS.get(self.state, {}).get(event)
         if next_state is None:
-            raise RuntimeError(f"Simulation cannot {event} from {self.state}")
+            raise RuntimeError(f"SumoEnvironment cannot {event} from {self.state}")
         self.state = next_state
 
     def _resolve_path(self, path_value: str) -> Path:
@@ -364,7 +364,7 @@ class Simulation:
         raise FileNotFoundError(
             f"Could not find SUMO executable '{binary_name}'. "
             "Put SUMO on PATH, set SUMO_HOME, or set "
-            "simulation.sumo_details.sumo_binary in config.json "
+            "environment.settings.binary in config.json "
             f"to the executable path. Checked:\n{searched}"
         )
 
@@ -398,15 +398,15 @@ class Simulation:
         """Return the lane_measurements sub-section from the configuration.
 
         Raises:
-            KeyError: If setup.simulation_measurements.sumo.lane_measurements is absent.
+            KeyError: If setup.measurements.sumo.lane_measurements is absent.
         """
         try:
-            return self.configuration["setup"]["simulation_measurements"]["sumo"][
+            return self.configuration["setup"]["measurements"]["sumo"][
                 "lane_measurements"
             ]
         except KeyError as error:
             raise KeyError(
-                "Missing setup.simulation_measurements.sumo.lane_measurements in config.json"
+                "Missing setup.measurements.sumo.lane_measurements in config.json"
             ) from error
 
     def _load_pressure_lanes(self) -> dict[str, Any]:
@@ -420,7 +420,7 @@ class Simulation:
         lane_cfg = self._lane_measurements_config()
         if "pressure_lanes" not in lane_cfg:
             raise KeyError(
-                "Missing setup.simulation_measurements.sumo."
+                "Missing setup.measurements.sumo."
                 "lane_measurements.pressure_lanes in config.json"
             )
         path = self._resolve_path(str(lane_cfg["pressure_lanes"]))
@@ -557,7 +557,7 @@ class Simulation:
         }
 
         self._send_message(
-            "logic_module", "simulation_started", {"label": self.sumo_label}
+            "logic_module", "environment_started", {"label": self.sumo_label}
         )
 
     _STEP_TIMEOUT_SECONDS = 30.0
@@ -584,10 +584,10 @@ class Simulation:
                 if self.step_delay_seconds > 0:
                     time.sleep(self.step_delay_seconds)
 
-            # notify logic module that the simulation is over
+            # notify logic module that the environment run is over
             self._send_message(
                 "logic_module",
-                "simulation_stopped",
+                "environment_stopped",
                 {"time": self.time, "step": self.step},
             )
         except Exception as error:

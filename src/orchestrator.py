@@ -12,10 +12,11 @@ from typing import Any
 from controller_fixed_cycle import FixedCycleController
 from controller_max_pressure import MaxPressureController
 from controller_priority_pass import PriorityPassController
+from environment_sumo import SumoEnvironment
 from recorder import Recorder
-from simulation_sumo import Simulation
 
 _AnyLogicModule = FixedCycleController | MaxPressureController | PriorityPassController
+_AnyEnvironment = SumoEnvironment
 
 
 class Orchestrator:
@@ -68,6 +69,10 @@ class Orchestrator:
         "controller_priority_pass": PriorityPassController,
     }
 
+    _ENVIRONMENT_TYPES: dict[str, type] = {
+        "sumo": SumoEnvironment,
+    }
+
     def __init__(self, configuration: dict[str, Any]):
         """Initialize the orchestrator in the CREATED state.
 
@@ -88,14 +93,14 @@ class Orchestrator:
         self.recorder: Recorder | None = None
         self.logic_modules: list[_AnyLogicModule] = []
         self._logic_module_names: list[str] = []  # component keys for each logic module
-        self.simulation: Simulation | None = None
+        self.environment: _AnyEnvironment | None = None
 
         # per-step command accumulator for multi-module support
         self._pending_commands: dict[str, Any] = {}
         self._pending_commands_count: int = 0
 
-        # set to True once simulation_started is received; back to False on simulation_stopped
-        self.simulation_running: bool = False
+        # set to True once environment_started is received; back to False on environment_stopped
+        self.environment_running: bool = False
 
         # TCP server for receiving messages from all sub-components
         self.server_socket: socket.socket | None = None
@@ -151,10 +156,10 @@ class Orchestrator:
                 if measurement not in required:
                     required.append(measurement)
 
-        sim_cfg = dict(self.configuration["simulation"])
-        sim_cfg["_scenario_path"] = str(self.configuration["scenario_path"])
-        sim_cfg["_logs_dir"] = str(self.configuration["recorder"]["logs_dir"])
-        self._configure_simulation(communication, setup, sim_cfg, required)
+        env_cfg = dict(self.configuration["environment"])
+        env_cfg["_scenario_path"] = str(self.configuration["scenario_path"])
+        env_cfg["_logs_dir"] = str(self.configuration["recorder"]["logs_dir"])
+        self._configure_environment(communication, setup, env_cfg, required)
         return self
 
     def start(self) -> None:
@@ -167,17 +172,17 @@ class Orchestrator:
         self._transition("start")
         assert self.recorder is not None
         assert len(self.logic_modules) > 0
-        assert self.simulation is not None
+        assert self.environment is not None
 
-        # start in order: recorder first so no messages are lost, then all logic modules, then simulation
+        # start in order: recorder first so no messages are lost, then all logic modules, then environment
         self.recorder.start()
         time.sleep(self.startup_pause_seconds)
         for module in self.logic_modules:
             module.start()
             time.sleep(self.startup_pause_seconds)
 
-        # simulation start triggers SUMO and fires simulation_started, which kicks off the loop
-        self.simulation.start()
+        # environment start triggers SUMO and fires environment_started, which kicks off the loop
+        self.environment.start()
 
     def stop(self) -> None:
         """Stop all sub-components, close the TCP server, and enter STOPPED."""
@@ -187,9 +192,9 @@ class Orchestrator:
         # signal all server threads to exit
         self.stop_event.set()
 
-        # stop in reverse startup order: simulation first so no new messages arrive
+        # stop in reverse startup order: environment first so no new messages arrive
         for component in (
-            [self.simulation] + list(reversed(self.logic_modules)) + [self.recorder]
+            [self.environment] + list(reversed(self.logic_modules)) + [self.recorder]
         ):
             if component is not None:
                 component.stop()
@@ -209,10 +214,10 @@ class Orchestrator:
         self._transition("stop")
 
     def wait_until_done(self) -> None:
-        """Block the calling thread until the simulation signals completion."""
+        """Block the calling thread until the environment signals completion."""
         self.done_event.wait()
-        if self.simulation is not None:
-            self.simulation.wait_until_done()
+        if self.environment is not None:
+            self.environment.wait_until_done()
 
     def fail(self, error: Exception | str) -> None:
         """Record an unrecoverable error and enter FAILED.
@@ -275,29 +280,30 @@ class Orchestrator:
             self.logic_modules.append(cls(cfg))
             self._logic_module_names.append(port_key)
 
-    def _configure_simulation(
+    def _configure_environment(
         self,
         communication: dict,
         setup: dict,
-        sim_cfg: dict,
+        env_cfg: dict,
         required_measurements: list[str],
     ) -> None:
-        """Assemble the simulation configuration and instantiate the Simulation object.
+        """Assemble the environment configuration and instantiate the environment object.
 
         Args:
             communication: Communication section of the top-level config.
             setup: Setup section of the top-level config.
-            sim_cfg: Simulation section dict (modified in-place).
+            env_cfg: Environment section dict (modified in-place).
             required_measurements: Lane measurement types requested by the logic module.
         """
-        # pop internal transport keys added by configure() before passing the dict to Simulation
-        scenario_path = str(sim_cfg.pop("_scenario_path"))
-        logs_dir = str(sim_cfg.pop("_logs_dir"))
-        cfg = sim_cfg
+        # pop internal transport keys added by configure() before passing the dict to the environment
+        scenario_path = str(env_cfg.pop("_scenario_path"))
+        logs_dir = str(env_cfg.pop("_logs_dir"))
+        env_type = str(env_cfg.pop("type", "sumo_simulation"))
+        cfg = env_cfg
 
         # inject network, orchestrator endpoint, and measurement requirements
         cfg["host"] = self.host
-        cfg["port"] = int(communication["ports"]["simulation"])
+        cfg["port"] = int(communication["ports"]["environment"])
         cfg["orchestrator"] = {"host": self.host, "port": self.port}
         cfg["setup"] = setup
         cfg["network"] = {"traffic_lights": list(setup.get("traffic_lights", []))}
@@ -305,12 +311,15 @@ class Orchestrator:
             setup.get("controller_response_timeout_seconds", 0.05)
         )
 
-        # copy sumo_details so we don't mutate the original config
-        cfg["sumo_details"] = dict(cfg["sumo_details"])
-        cfg["sumo_details"]["random_seed"] = int(setup.get("random_seed", 42))
+        # copy settings block so we don't mutate the original config; inject random_seed
+        cfg["settings"] = dict(cfg["settings"])
+        cfg["settings"]["random_seed"] = int(setup.get("random_seed", 42))
         cfg["logs_dir"] = logs_dir
         cfg["lane_measurements_enabled"] = required_measurements
-        self.simulation = Simulation(cfg, scenario_path=Path(scenario_path))
+
+        # look up the environment class by type string (e.g. "sumo_simulation")
+        cls = self._ENVIRONMENT_TYPES[env_type]
+        self.environment = cls(cfg, scenario_path=Path(scenario_path))
 
     # ------------------------------------------------------------------
     # TCP server
@@ -404,12 +413,12 @@ class Orchestrator:
             self._log_message(message)
 
         # orchestration hooks — intercept key topics to drive the step/apply loop
-        if topic == "simulation_started":
-            self.simulation_running = True
-            self._send_step_to_simulation()
+        if topic == "environment_started":
+            self.environment_running = True
+            self._send_step_to_environment()
             return
 
-        if topic == "traffic_state" and sender == "simulation":
+        if topic == "traffic_state" and sender == "environment":
             # fan out to every logic module so all can compute their response
             for name in self._logic_module_names:
                 self._forward(name, message)
@@ -426,12 +435,12 @@ class Orchestrator:
                 self._pending_commands.clear()
                 self._pending_commands_count = 0
                 self._send_apply_and_advance(merged)
-                if self.simulation_running:
-                    self._send_step_to_simulation()
+                if self.environment_running:
+                    self._send_step_to_environment()
             return
 
-        if topic == "simulation_stopped":
-            self.simulation_running = False
+        if topic == "environment_stopped":
+            self.environment_running = False
             self.done_event.set()
             return
 
@@ -462,13 +471,13 @@ class Orchestrator:
         }
         self._forward("recorder", log_message)
 
-    def _send_step_to_simulation(self) -> None:
-        """Tell the simulation to begin its next measurement-collection iteration."""
+    def _send_step_to_environment(self) -> None:
+        """Tell the environment to begin its next measurement-collection iteration."""
         self._forward(
-            "simulation",
+            "environment",
             {
                 "sender": self.NAME,
-                "target": "simulation",
+                "target": "environment",
                 "topic": "step",
                 "sent_at": time.time(),
                 "payload": {},
@@ -476,16 +485,16 @@ class Orchestrator:
         )
 
     def _send_apply_and_advance(self, commands: dict[str, Any]) -> None:
-        """Tell the simulation to apply the given signal commands and advance one SUMO step.
+        """Tell the environment to apply the given signal commands and advance one SUMO step.
 
         Args:
             commands: Dict mapping traffic-light ID to the target phase signal index.
         """
         self._forward(
-            "simulation",
+            "environment",
             {
                 "sender": self.NAME,
-                "target": "simulation",
+                "target": "environment",
                 "topic": "apply_and_advance",
                 "sent_at": time.time(),
                 "payload": {"commands": commands},
