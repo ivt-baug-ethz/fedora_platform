@@ -153,8 +153,13 @@ class TestRecorderCommunication(unittest.TestCase):
 
             conn = sock_mod.create_connection(("127.0.0.1", actual_port), timeout=2.0)
             for i in range(3):
-                msg = {"sender": "s", "target": "recorder", "topic": "t",
-                       "sent_at": time.time(), "payload": {"i": i}}
+                msg = {
+                    "sender": "s",
+                    "target": "recorder",
+                    "topic": "t",
+                    "sent_at": time.time(),
+                    "payload": {"i": i},
+                }
                 conn.sendall(json.dumps(msg, sort_keys=True).encode("utf-8") + b"\n")
             time.sleep(0.15)
             conn.close()

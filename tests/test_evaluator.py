@@ -26,12 +26,72 @@ class TestEvaluator(unittest.TestCase):
 
             vehicle_log = tmpdir_path / "vehicle_log.jsonl"
             with vehicle_log.open("w") as f:
-                f.write(json.dumps({"vehicle_id": "v_0", "event_type": "arrival", "time": 10.0, "priority": 0}) + "\n")
-                f.write(json.dumps({"vehicle_id": "v_0", "event_type": "departure", "time": 15.0, "priority": 0}) + "\n")
-                f.write(json.dumps({"vehicle_id": "v_1", "event_type": "arrival", "time": 11.0, "priority": 1}) + "\n")
-                f.write(json.dumps({"vehicle_id": "v_1", "event_type": "departure", "time": 18.0, "priority": 1}) + "\n")
-                f.write(json.dumps({"vehicle_id": "v_2", "event_type": "arrival", "time": 12.0, "priority": 0}) + "\n")
-                f.write(json.dumps({"vehicle_id": "v_2", "event_type": "departure", "time": 20.0, "priority": 0}) + "\n")
+                f.write(
+                    json.dumps(
+                        {
+                            "vehicle_id": "v_0",
+                            "event_type": "arrival",
+                            "time": 10.0,
+                            "priority": 0,
+                        }
+                    )
+                    + "\n"
+                )
+                f.write(
+                    json.dumps(
+                        {
+                            "vehicle_id": "v_0",
+                            "event_type": "departure",
+                            "time": 15.0,
+                            "priority": 0,
+                        }
+                    )
+                    + "\n"
+                )
+                f.write(
+                    json.dumps(
+                        {
+                            "vehicle_id": "v_1",
+                            "event_type": "arrival",
+                            "time": 11.0,
+                            "priority": 1,
+                        }
+                    )
+                    + "\n"
+                )
+                f.write(
+                    json.dumps(
+                        {
+                            "vehicle_id": "v_1",
+                            "event_type": "departure",
+                            "time": 18.0,
+                            "priority": 1,
+                        }
+                    )
+                    + "\n"
+                )
+                f.write(
+                    json.dumps(
+                        {
+                            "vehicle_id": "v_2",
+                            "event_type": "arrival",
+                            "time": 12.0,
+                            "priority": 0,
+                        }
+                    )
+                    + "\n"
+                )
+                f.write(
+                    json.dumps(
+                        {
+                            "vehicle_id": "v_2",
+                            "event_type": "departure",
+                            "time": 20.0,
+                            "priority": 0,
+                        }
+                    )
+                    + "\n"
+                )
 
             evaluator = Evaluator(tmpdir_path)
             evaluator.load_vehicle_log()

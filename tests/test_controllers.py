@@ -128,8 +128,12 @@ class TestFixedCycleFSM(unittest.TestCase):
 class TestFixedCycleLogic(unittest.TestCase):
     """Phase-progression logic for FixedCycleController."""
 
-    def _make_ctrl(self, phase_durations: list[int], transition_duration: int = 2,
-                   time_delays: dict | None = None) -> FixedCycleController:
+    def _make_ctrl(
+        self,
+        phase_durations: list[int],
+        transition_duration: int = 2,
+        time_delays: dict | None = None,
+    ) -> FixedCycleController:
         cfg = _fixed_cycle_cfg()
         cfg["fixed_cycle"]["phase_durations"] = phase_durations
         cfg["fixed_cycle"]["transition_duration"] = transition_duration
@@ -314,13 +318,17 @@ class TestMaxPressureLogic(unittest.TestCase):
         ctrl = self._make_ctrl()
         state = ctrl._new_light_state()
         ctrl._auction_transition(state, "new_phase")
-        self.assertEqual(state["auction_state"], MaxPressureController.AUCTION_CHANGING_SIGNAL)
+        self.assertEqual(
+            state["auction_state"], MaxPressureController.AUCTION_CHANGING_SIGNAL
+        )
 
     def test_auction_transition_invalid_raises(self) -> None:
         ctrl = self._make_ctrl()
         state = ctrl._new_light_state()
         with self.assertRaises(RuntimeError):
-            ctrl._auction_transition(state, "min_green_done")  # invalid from AUCTION_READY
+            ctrl._auction_transition(
+                state, "min_green_done"
+            )  # invalid from AUCTION_READY
 
 
 class TestPriorityPassFSM(unittest.TestCase):
@@ -466,20 +474,26 @@ class TestOrchestratorControllerInstantiation(unittest.TestCase):
         ctrl_section: dict[str, Any] = {"type": controller_type}
         if controller_type == "controller_fixed_cycle":
             ctrl_section["fixed_cycle"] = {
-                "phase_durations": [10], "transition_duration": 2,
-                "time_delays": {}, "default_time_delay": 0,
+                "phase_durations": [10],
+                "transition_duration": 2,
+                "time_delays": {},
+                "default_time_delay": 0,
             }
         elif controller_type == "controller_max_pressure":
             ctrl_section["max_pressure"] = {
                 "bidding_strategy": "phase_queue_length",
-                "min_green_duration": 5, "max_green_duration": 20,
-                "auction_suspend_duration": 3, "transition_duration": 2,
+                "min_green_duration": 5,
+                "max_green_duration": 20,
+                "auction_suspend_duration": 3,
+                "transition_duration": 2,
             }
         elif controller_type == "controller_priority_pass":
             ctrl_section["priority_pass"] = {
                 "bidding_strategy": "phase_queue_length",
-                "min_green_duration": 5, "max_green_duration": 20,
-                "auction_suspend_duration": 3, "transition_duration": 2,
+                "min_green_duration": 5,
+                "max_green_duration": 20,
+                "auction_suspend_duration": 3,
+                "transition_duration": 2,
                 "trade_off": 0.5,
             }
 
