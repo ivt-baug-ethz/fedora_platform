@@ -3,7 +3,7 @@ name: Type Checking & Linting
 on:
     push:
         branches:
-            - master
+            - main
             - dev
     pull_request:
         types: [opened, synchronize]
