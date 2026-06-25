@@ -225,5 +225,6 @@ __marimo__/
 # LLMs
 docs/scratchpad.md
 
-# runtime logs
+# runtime logs and evaluation results
 logs/
+results/

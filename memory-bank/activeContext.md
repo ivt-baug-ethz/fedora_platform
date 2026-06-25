@@ -28,20 +28,19 @@ with separate configuration files and entry point support for scenario selection
 ## Previous Reorganization (2026-06-24)
 
 **Structural changes:**
-- Moved `simple_b/` components directly into `src/`:
+- Reorganized core components into `src/`:
   - `src/connector.py` — TCP JSON-line message router FSM
   - `src/controller_fixed_cycle.py` — Fixed-cycle controller FSM
   - `src/controller_max_pressure.py` — Max-pressure controller FSM
   - `src/controller_priority_pass.py` — Priority Pass controller FSM
   - `src/simulation_sumo.py` — SUMO TraCI FSM and traffic-state publisher
   - `src/recorder.py` — TCP communication logger FSM
-- Moved tests from `src/tests/` to root-level `tests/`
-- Created `scenarios/` directory replacing `models/` for scenario-specific files:
+- Moved tests to root-level `tests/` directory
+- Created `scenarios/` directory for scenario-specific files:
   - `scenarios/demo/sumo/` — Demo SUMO simulation files
   - `scenarios/pilot_vienna/`, `pilot_basque_country/`, etc. — Pilot scenario files
-- Created `configurations/` directory for configuration files:
-  - `configurations/sumo_priority_pass_demo_config.json`
-- Moved entry point from `simple_b/main.py` to `run.py` at repository root
+- Created `configurations/` directory for scenario configuration files
+- Entry point at `run.py` loads configuration and orchestrates component startup
 - Created `logs/` directory for output artifacts
 
 ## What Is Working

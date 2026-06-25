@@ -11,7 +11,7 @@ import sys
 import threading
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, TextIO
 
 
 class Simulation:
@@ -109,6 +109,11 @@ class Simulation:
         self.server_thread: threading.Thread | None = None
         self.run_thread: threading.Thread | None = None
         self.last_error: str | None = None
+        self.vehicle_log_file: TextIO | None = None
+        self.vehicle_log_path: Path = Path("logs/vehicle_log.jsonl")
+        self.vehicle_log_lock = threading.Lock()
+        self.vehicle_arrivals: dict[str, float] = {}
+        self.vehicle_sensor_entered: set[str] = set()
 
     def configure(self) -> "Simulation":
         """Load paths, metadata, and runtime settings, then enter CONFIGURED."""
@@ -137,8 +142,8 @@ class Simulation:
             demand, "route_probabilities_file"
         )
         self.spawn_probabilities = self._build_spawn_probabilities(demand)
-        self.vot_spawn_probabilities = dict(demand["vot_spawn_probabilities"])
-        self.vot_upp_spawn_probabilities = dict(demand["vot_upp_spawn_probabilities"])
+        self.vot_spawn_probabilities = dict(demand.get("vot_spawn_probabilities", {}))
+        self.vot_upp_spawn_probabilities = dict(demand.get("vot_upp_spawn_probabilities", {}))
         self.vehicle_colors = self._build_vehicle_colors(visualization)
         self.sensor_distance = float(measurement_details.get("sensor_distance", 100.0))
         self.position_distances = [
@@ -157,6 +162,7 @@ class Simulation:
             self.configuration.get("controller_response_timeout_seconds", 0.05)
         )
         self.random.seed(int(sumo_details.get("random_seed", 42)))
+        self._setup_vehicle_log()
         return self
 
     def start(self) -> None:
@@ -165,6 +171,7 @@ class Simulation:
             self.configure()
         if self.state == self.STATE_CONFIGURED:
             self._open_server()
+            self._open_vehicle_log()
             self._open_sumo()
             self._transition("prepare")
         self._transition("start")
@@ -185,6 +192,8 @@ class Simulation:
             except (AttributeError, OSError):
                 pass
             self.connection = None
+        if self.vehicle_log_file is not None:
+            self.vehicle_log_file.close()
         self._transition("stop")
 
     def wait_until_done(self) -> None:
@@ -432,6 +441,7 @@ class Simulation:
         assert self.connection is not None
         if self.traci_spawning_active:
             self._spawn_vehicles()
+        self._track_vehicle_events()
         self._crawl_step_traci_data()
         self._send_message("controller", "traffic_state", self._build_traffic_state())
         self.command_event.wait(self.controller_response_timeout_seconds)
@@ -470,6 +480,24 @@ class Simulation:
             if cumulative >= threshold:
                 return str(item)
         return str(next(reversed(weights_by_item)))
+
+    def _track_vehicle_events(self) -> None:
+        assert self.connection is not None
+        current_ids = set(self.connection.vehicle.getIDList())
+        previous_ids = set(self.vehicle_ids)
+        self.time = float(self.connection.simulation.getTime())
+
+        new_vehicles = current_ids - previous_ids
+        for vehicle_id in new_vehicles:
+            self.vehicle_arrivals[vehicle_id] = self.time
+            self._log_vehicle_event(vehicle_id, "arrival", self.time)
+
+        departed_vehicles = previous_ids - current_ids
+        for vehicle_id in departed_vehicles:
+            if vehicle_id in self.vehicle_arrivals:
+                departure_time = self.time
+                self._log_vehicle_event(vehicle_id, "departure", departure_time)
+                del self.vehicle_arrivals[vehicle_id]
 
     def _crawl_step_traci_data(self) -> None:
         assert self.connection is not None
@@ -585,6 +613,28 @@ class Simulation:
             self.pending_commands.clear()
         for traffic_light, phase_signal in commands.items():
             self.connection.trafficlight.setPhase(traffic_light, phase_signal)
+
+    def _setup_vehicle_log(self) -> None:
+        logs_dir = self.configuration.get("logs_dir", "logs")
+        os.makedirs(logs_dir, exist_ok=True)
+        self.vehicle_log_path = Path(logs_dir) / "vehicle_log.jsonl"
+
+    def _open_vehicle_log(self) -> None:
+        self.vehicle_log_file = self.vehicle_log_path.open("w", encoding="utf-8")
+
+    def _log_vehicle_event(
+        self, vehicle_id: str, event_type: str, event_time: float
+    ) -> None:
+        record = {
+            "vehicle_id": vehicle_id,
+            "event_type": event_type,
+            "time": event_time,
+            "priority": self.vehicle_upp.get(vehicle_id, 0),
+        }
+        with self.vehicle_log_lock:
+            if self.vehicle_log_file is not None:
+                self.vehicle_log_file.write(json.dumps(record) + "\n")
+                self.vehicle_log_file.flush()
 
     def _send_message(self, target: str, topic: str, payload: dict[str, Any]) -> None:
         message = {

@@ -41,7 +41,7 @@
 - Additional communication protocols.
 - Enhanced storage backends.
 - Web UI components.
-- Optional future split of `simple_b` FSMs into independent processes.
+- Optional future split of FSM components into independent processes.
 
 ## Test Coverage Assessment
 
@@ -69,15 +69,6 @@
 - Tests cover all data storage backends (memory, JSON, SQLite).
 - Tests verify interaction logging functionality.
 
-### simple_b
-
-- `py_compile` passes for all `simple_b` controller/component Python files using the available
-  Anaconda Python.
-- `py_compile` passes for the added fixed-cycle and max-pressure controller files.
-- Component configuration loading succeeds without starting SUMO.
-- SUMO executable resolution was validated against the local Windows install path.
-- No dedicated automated test file exists yet for the TCP FSM prototype.
-
 ## Pilot Readiness
 
 | Pilot | Model assets present | Code integration status |
@@ -88,4 +79,3 @@
 | Copenhagen | Yes | Placeholder |
 | Reggio Emilia | Yes | Placeholder |
 | Budapest | Yes | Placeholder |
-| simple_b prototype | Yes | Simplified TCP FSM prototype |

@@ -50,6 +50,7 @@ src/
   controller_priority_pass.py  Priority-pass auction controller FSM
   connector.py                 TCP JSON-line message router FSM
   recorder.py                  Communication logger FSM
+  evaluator.py                 Evaluation component for travel time analysis
 
 configurations/
   demo_sumo_fixed_cycle_config.json       Demo: fixed-cycle controller
@@ -290,8 +291,9 @@ python run.py --help
 
 - **Simulation logs:** `logs/{scenario}_{controller}/` — Complete trace of all decisions and state
   - Example: `logs/demo_fixed_cycle/`, `logs/vienna_priority_pass/`
+- **Vehicle event log:** `logs/{scenario}_{controller}/vehicle_log.jsonl` — Vehicle arrivals and departures with priority status
+- **Communication log:** `logs/{scenario}_{controller}/communication_log.txt` — All inter-component messages
 - **SUMO GUI:** Visual representation of vehicles and signal states (when `sumo-gui` is available)
-- **TCP messages:** Logged by Recorder component as newline-delimited JSON
 
 ## Requirements
 

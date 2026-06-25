@@ -2,10 +2,13 @@
 
 This file provides quick reference guidance for working on the FEDORA Platform. For comprehensive
 agent instructions, code quality requirements, and architectural decisions, always refer to **AGENTS.md**.
+You NEVER need to commit your changes, this will be done manually by the project maintainer. You are only
+responsible for following the rules and updating the documentation.
 
 ## Quick Reference
 
 **Read these first:**
+
 - `AGENTS.md` — Complete agent instructions (mandatory for all work)
 - `memory-bank/` — Persistent context about the project state and decisions
 - `docs/STRUCTURE.md` — Current directory structure and module responsibilities
@@ -14,9 +17,11 @@ agent instructions, code quality requirements, and architectural decisions, alwa
 ## Essential Rules
 
 1. **Always activate the virtual environment:**
+
    ```bash
    source venv/bin/activate
    ```
+
    If it doesn't exist: `python3.13 -m venv venv && source venv/bin/activate && pip install -r requirements.txt`
 
 2. **Update documentation on every task:**
@@ -31,9 +36,11 @@ agent instructions, code quality requirements, and architectural decisions, alwa
    - `memory-bank/systemPatterns.md` — When architecture changes
 
 4. **Run tests before committing:**
+
    ```bash
    pytest tests/ -v
    ```
+
    All tests must pass.
 
 5. **Follow the code style:**
@@ -74,12 +81,14 @@ fedora_platform/
 ## Common Tasks
 
 ### Add New Code
+
 1. Create/modify files as needed
 2. Add type annotations and docstrings
 3. Update `docs/STRUCTURE.md` if adding new files/directories
 4. Run `pytest tests/ -v` to verify
 
 ### Fix a Bug
+
 1. Write a test that reproduces the bug
 2. Fix the bug
 3. Verify all tests pass
@@ -87,6 +96,7 @@ fedora_platform/
 5. Update `docs/scratchpad.md` with what you learned
 
 ### Refactor Code
+
 1. Plan the refactor (use AGENTS.md for architectural guidance)
 2. Preserve all existing behavior
 3. Update `docs/STRUCTURE.md` if module responsibilities change
@@ -127,6 +137,7 @@ For project-specific questions, refer to AGENTS.md or check the memory-bank cont
 ### From AGENTS.md: Memory Bank Files
 
 All files in `memory-bank/` MUST be read at the start of every session and updated at the end:
+
 - `projectbrief.md` — Read-only (project scope and goals)
 - `systemPatterns.md` — Update when architecture changes
 - `techContext.md` — Update when dependencies or environment changes
@@ -141,19 +152,24 @@ When updating `docs/scratchpad.md`, document each session with:
 ## Task: <description>
 
 ### Plan
+
 - [ ] Step 1
 - [ ] Step 2
 
 ### Learnings
+
 - YYYY-MM-DD: <learning>
 
 ### Decisions
+
 - <decision>: <rationale>
 
 ### Dead Ends
+
 - <approach>: <why it failed>
 
 ### Open Questions
+
 - <question>
 ```
 

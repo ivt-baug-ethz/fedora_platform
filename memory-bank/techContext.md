@@ -69,9 +69,9 @@ Code is linted using pylint with rules defined in .pylintrc:
 
 ### TraCI Connection Refused
 - SUMO not installed or not in PATH
-- SUMO binary path not correctly configured in PriorityPassConfig
-- For `simple_b`, `sumo-gui` is resolved from PATH, `SUMO_HOME`, and common Windows local install
-  paths. This avoids Spyder failures when SUMO is installed but not available as a shell command.
+- SUMO binary path not correctly configured in the scenario configuration
+- The platform resolves `sumo-gui` from PATH, `SUMO_HOME`, and common Windows local install
+  paths. This avoids failures when SUMO is installed but not available as a shell command.
 
 ### Anaconda Pytest Plugin Autoload
 - In the 2026-05-31 session, default Anaconda pytest startup failed before collecting tests due

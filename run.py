@@ -1,4 +1,15 @@
-"""Load simple_b configuration and launch the TCP FSM components."""
+"""Load configuration and launch the TCP FSM components.
+
+Examples:
+    python run.py
+    python run.py configurations/demo_sumo_fixed_cycle_config.json
+    python run.py configurations/demo_sumo_max_pressure_config.json
+    python run.py configurations/demo_sumo_priority_pass_config.json
+    python run.py configurations/vienna_sumo_fixed_cycle_config.json
+    python run.py configurations/vienna_sumo_max_pressure_config.json
+    python run.py configurations/vienna_sumo_priority_pass_config.json
+    python run.py configurations/demo_sumo_priority_pass_config.json --skip-evaluation
+"""
 
 from __future__ import annotations
 
@@ -13,6 +24,7 @@ from controller_max_pressure import MaxPressureController
 from controller_priority_pass import PriorityPassController
 from recorder import Recorder
 from simulation_sumo import Simulation
+from evaluator import Evaluator
 
 
 def with_endpoint(
@@ -56,12 +68,15 @@ def build_connector_configuration(communication: dict) -> dict:
 def main() -> None:
     # parse command-line arguments
     config_file = "configurations/demo_sumo_priority_pass_config.json"
-    if len(sys.argv) > 1:
-        if sys.argv[1] in ("--help", "-h"):
-            print("Usage: python run.py [CONFIG_FILE]")
-            print(
-                "  CONFIG_FILE: Path to JSON config file (default: demo_sumo_priority_pass_config.json)"
-            )
+    skip_evaluation = False
+
+    for arg in sys.argv[1:]:
+        if arg in ("--help", "-h"):
+            print("Usage: python run.py [CONFIG_FILE] [OPTIONS]")
+            print("  CONFIG_FILE: Path to JSON config file")
+            print("               (default: demo_sumo_priority_pass_config.json)")
+            print("\nOptions:")
+            print("  --skip-evaluation: Skip evaluation and visualization after simulation")
             print("\nAvailable demo configs:")
             print("  - configurations/demo_sumo_fixed_cycle_config.json")
             print("  - configurations/demo_sumo_max_pressure_config.json")
@@ -71,8 +86,10 @@ def main() -> None:
             print("  - configurations/vienna_sumo_max_pressure_config.json")
             print("  - configurations/vienna_sumo_priority_pass_config.json")
             sys.exit(0)
-        else:
-            config_file = sys.argv[1]
+        elif arg == "--skip-evaluation":
+            skip_evaluation = True
+        elif not arg.startswith("--"):
+            config_file = arg
 
     # load the configuration file
     with Path(config_file).open("r", encoding="utf-8") as f:
@@ -90,7 +107,15 @@ def main() -> None:
     controller_type = str(config["controller"].get("type", "priority_pass"))
     controller_class = controller_types[controller_type]
 
-    recorder = Recorder(with_endpoint(config["recorder"], "recorder", communication))
+    # Extract scenario and controller info for evaluation output directory
+    config_path = Path(config_file)
+    config_stem = config_path.stem
+    scenario_parts = config_stem.split("_sumo_")
+    scenario = scenario_parts[0] if scenario_parts else "unknown"
+    controller_name = scenario_parts[1] if len(scenario_parts) > 1 else controller_type
+
+    recorder_config = with_endpoint(config["recorder"], "recorder", communication)
+    recorder = Recorder(recorder_config)
     controller_configuration = with_endpoint(
         config["controller"],
         "controller",
@@ -116,6 +141,7 @@ def main() -> None:
         simulation_configuration["sumo_details"]
     )
     simulation_configuration["sumo_details"]["random_seed"] = random_seed
+    simulation_configuration["logs_dir"] = str(recorder_config["logs_dir"])
     simulation = Simulation(
         simulation_configuration, scenario_path=Path(config["scenario_path"])
     )
@@ -127,6 +153,16 @@ def main() -> None:
             component.start()
             time.sleep(startup_pause_seconds)
         simulation.wait_until_done()
+
+        # Run evaluation after simulation completes
+        if not skip_evaluation:
+            logs_dir = Path(config["recorder"]["logs_dir"])
+            output_dir = Path("results") / scenario / controller_name
+            try:
+                evaluator = Evaluator(logs_dir, output_dir)
+                evaluator.evaluate_and_report()
+            except FileNotFoundError as error:
+                print(f"Warning: Evaluation skipped - {error}")
     except KeyboardInterrupt:
         simulation.stop()
     finally:

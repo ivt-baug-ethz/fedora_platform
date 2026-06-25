@@ -8,9 +8,11 @@ fedora_platform/
 │   ├── controller_max_pressure.py – Max-pressure auction controller FSM
 │   ├── controller_priority_pass.py – Priority Pass (Vienna pilot) controller FSM
 │   ├── connector.py               – TCP JSON-line message router FSM
-│   └── recorder.py                – TCP communication logger FSM
+│   ├── recorder.py                – TCP communication logger FSM
+│   └── evaluator.py               – Evaluation component for delay analysis and visualization
 │
 ├── run.py                         – Entry point: loads configuration and starts components
+├── evaluate.py                    – Standalone script to evaluate simulation results
 │
 ├── tests/                         – Unit and integration tests
 │   ├── test_core.py               – Core component lifecycle and message bus tests
@@ -42,9 +44,26 @@ fedora_platform/
 │   ├── pilot_reggio_emilia/       – Reggio Emilia pilot scenario skeleton
 │   └── pilot_budapest/            – Budapest pilot scenario skeleton
 │
-├── logs/                          – Generated output and logs
+├── logs/                          – Generated simulation logs
 │   ├── .gitkeep                   – Marker for git
-│   └── sumo_priority_pass/        – Logs from demo runs
+│   ├── demo_priority_pass/        – Demo priority pass run logs
+│   │   ├── communication_log.txt  – All inter-component messages
+│   │   └── vehicle_log.jsonl      – Vehicle arrival/departure events
+│   └── {scenario}_{controller}/   – Logs from other scenario/controller combinations
+│
+├── results/                        – Evaluation results (auto-generated, .gitignored)
+│   ├── demo/
+│   │   ├── priority_pass/         – Priority pass evaluation
+│   │   │   ├── delay_distribution.png
+│   │   │   ├── cumulative_delay.png
+│   │   │   └── evaluation_stats.json
+│   │   ├── max_pressure/
+│   │   └── fixed_cycle/
+│   ├── vienna/
+│   │   ├── priority_pass/
+│   │   ├── max_pressure/
+│   │   └── fixed_cycle/
+│   └── {scenario}/{controller}/   – Evaluation output structure
 │
 ├── docs/                          – LLM-maintained documentation (MANDATORY)
 │   ├── STRUCTURE.md               – This file (directory tree and responsibilities)
@@ -82,44 +101,59 @@ fedora_platform/
 ### Core Application Components (`src/`)
 
 **simulation_sumo.py**
+
 - Manages SUMO/TraCI connection lifecycle
 - Spawns vehicles, reads traffic state, and applies traffic light commands
 - Implements FSM for simulation control flow (CREATED → CONFIGURED → READY → RUNNING → STOPPED)
 - Publishes traffic metrics (queue lengths, vehicle positions) as JSON messages over TCP
 
 **connector.py**
+
 - Routes JSON-line TCP messages between application components
 - Maintains persistent TCP connections to all components (Simulation, Controller, Recorder)
 - Implements FSM for connection state management
 - Mirrors all traffic for logging to Recorder component
 
 **controller_fixed_cycle.py**
+
 - Implements fixed-cycle traffic light control
 - Receives traffic state from Simulation, computes phase duration, sends commands back
 - Uses simple cycle timing (e.g., 60s cycle: 30s green north/south, 30s green east/west)
 - Implements FSM for controller state transitions
 
 **controller_max_pressure.py**
+
 - Implements max-pressure-based auction algorithm
 - Receives traffic state, computes pressure (queue length difference) per movement
 - Selects movement with highest pressure, implements auction mechanism
 - Implements FSM for controller state transitions
 
 **controller_priority_pass.py**
+
 - Implements Vienna Priority Pass optimization algorithm
 - Receives traffic state and priority vehicle information
 - Optimizes phase sequence considering both traffic efficiency and transit priority
 - Implements FSM for controller state transitions
 
 **recorder.py**
+
 - Listens on dedicated TCP port for message copies from Connector
 - Logs all inter-component communication (traffic, commands, state) to text files
 - Writes logs to `logs/` directory for post-simulation analysis
 - Implements FSM for recorder state transitions
 
-### Entry Point
+**evaluator.py**
+
+- Post-simulation analysis component for evaluating performance
+- Reads vehicle event logs (arrivals/departures) from simulation
+- Calculates vehicle delays and separates metrics by priority status
+- Generates visualizations: delay distributions and cumulative delay over time
+- Exports evaluation statistics to JSON for further analysis
+
+### Entry Points
 
 **run.py**
+
 - Loads configuration from `configurations/` directory (JSON format)
 - Initializes all FSM components (Simulation, Controller, Connector, Recorder)
 - Orchestrates component startup order and lifecycle transitions
