@@ -284,8 +284,9 @@ class PriorityPassController:
             commands = self._build_commands(payload)
             self._send_message(
                 "simulation",
-                "traffic_light_command",
+                "logic_command",
                 {
+                    "type": "traffic_light_command",
                     "time": payload.get("time"),
                     "step": payload.get("step"),
                     "commands": commands,

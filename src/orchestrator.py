@@ -424,7 +424,7 @@ class Orchestrator:
                 self._forward(name, message)
             return
 
-        if topic == "traffic_light_command" and sender == "logic_module":
+        if topic == "logic_command" and sender == "logic_module":
             # accumulate commands; send apply_and_advance only after all modules have responded
             self._pending_commands.update(
                 dict(message.get("payload", {}).get("commands", {}))
