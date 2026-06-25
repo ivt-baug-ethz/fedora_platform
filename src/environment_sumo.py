@@ -172,9 +172,7 @@ class SumoEnvironment:
         self.sumo_binary = self._resolve_sumo_binary(
             str(sumo_cfg.get("binary", "sumo-gui"))
         )
-        self.sumo_config_file = self._resolve_path(
-            str(sumo_cfg["config_file"])
-        )
+        self.sumo_config_file = self._resolve_path(str(sumo_cfg["config_file"]))
         self.sumo_label = str(sumo_cfg.get("label", "simple_b"))
         self.random.seed(int(sumo_cfg.get("random_seed", 42)))
 
