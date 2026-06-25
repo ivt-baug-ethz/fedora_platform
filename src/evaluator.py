@@ -145,7 +145,8 @@ class Evaluator:
             axes[0].text(0.5, 0.5, "No regular vehicles", ha="center", va="center")
             axes[0].set_title("Regular Vehicle Travel Time Distribution")
 
-        if self.priority_delays:
+        # show_priority is False for controllers that don't use priority vehicles
+        if self.priority_delays and self.show_priority:
             axes[1].hist(self.priority_delays, bins=20, alpha=0.7, color="green")
             axes[1].axvline(
                 statistics.mean(self.priority_delays),
@@ -171,6 +172,78 @@ class Evaluator:
             print(f"Saved delay distribution plot to {output_path}")
         else:
             plt.show()
+
+        plt.close()
+
+    def plot_vehicle_counts(self, output_path: str | Path | None = None) -> None:
+        """Plot cumulative vehicle counts over simulation time by vehicle type.
+
+        Counts only vehicles whose travel time was measured (both arrival and
+        departure recorded), matching the population used by all other metrics.
+
+        Args:
+            output_path: If given, save the figure to this path; otherwise display it.
+        """
+        # sort by departure time so counts accumulate chronologically
+        sorted_vehicles = sorted(
+            (
+                (vid, d)
+                for vid, d in self.vehicle_data.items()
+                if d["arrival"] is not None and d["departure"] is not None
+            ),
+            key=lambda x: x[1]["departure"],
+        )
+
+        times: list[float] = []
+        count_regular_series: list[int] = []
+        count_priority_series: list[int] = []
+        count_total_series: list[int] = []
+
+        count_regular = 0
+        count_priority = 0
+
+        for _, data in sorted_vehicles:
+            if data["priority"] == 1:
+                count_priority += 1
+            else:
+                count_regular += 1
+
+            times.append(data["departure"])
+            count_regular_series.append(count_regular)
+            count_priority_series.append(count_priority)
+            count_total_series.append(count_regular + count_priority)
+
+        _, ax = plt.subplots(figsize=(12, 6))
+        if count_regular_series:
+            ax.plot(
+                times, count_regular_series, label="Regular Vehicles", linewidth=2
+            )
+        # show_priority is False for controllers that don't use priority vehicles
+        if count_priority_series and self.show_priority:
+            ax.plot(
+                times, count_priority_series, label="Priority Vehicles", linewidth=2
+            )
+        ax.plot(
+            times, count_total_series, label="Total", linewidth=2, linestyle="--"
+        )
+
+        ax.set_xlabel("Time (seconds)")
+        ax.set_ylabel("Number of Vehicles")
+        ax.set_title("Cumulative Vehicle Count with Measured Travel Time")
+        ax.legend()
+        ax.grid(True, alpha=0.3)
+        plt.tight_layout()
+
+        # save to file if a path was given, otherwise display interactively
+        if output_path:
+            output_path = Path(output_path)
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            plt.savefig(output_path, dpi=150)
+            print(f"Saved vehicle count plot to {output_path}")
+        else:
+            plt.show()
+
+        plt.close()
 
     def plot_average_travel_time(self, output_path: str | Path | None = None) -> None:
         """Plot cumulative average travel time over simulation time by vehicle type.
@@ -258,6 +331,8 @@ class Evaluator:
         else:
             plt.show()
 
+        plt.close()
+
     def evaluate_and_report(self) -> dict[str, Any]:
         """Run the full evaluation pipeline and save plots and statistics to disk.
 
@@ -317,6 +392,7 @@ class Evaluator:
             self.output_dir / "travel_time_distribution.png"
         )
         self.plot_average_travel_time(self.output_dir / "average_travel_time.png")
+        self.plot_vehicle_counts(self.output_dir / "vehicle_counts.png")
 
         with (self.output_dir / "evaluation_stats.json").open(
             "w", encoding="utf-8"

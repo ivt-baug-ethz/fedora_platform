@@ -755,6 +755,7 @@ class Simulation:
             )
         if self.LANE_MEASUREMENT_UPP_BIDS in self.enabled_lane_measurements:
             metrics["upp_bids"] = self._get_phase_upp_bids(phase_lanes)
+
         return metrics
 
     def _get_phase_queue_lengths(
