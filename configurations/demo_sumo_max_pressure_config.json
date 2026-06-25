@@ -1,12 +1,13 @@
 {
+  "scenario": "demo",
   "scenario_path": "scenarios/demo/sumo",
   "communication": {
     "host": "127.0.0.1",
     "ports": {
-      "connector": 51000,
+      "orchestrator": 51000,
       "simulation": 51001,
-      "controller": 51002,
-      "recorder": 51003
+      "recorder": 51003,
+      "logic_module": 51002
     },
     "socket_timeout": 2.0
   },
@@ -14,8 +15,7 @@
     "simulation_measurements": {
       "sumo": {
         "lane_measurements": {
-          "pressure_lanes": "phase_bidder_lanes.json",
-          "enabled": ["queue_lengths"]
+          "pressure_lanes": "phase_inc_lanes.json"
         },
         "measurement_details": {
           "sensor_distance": 100.0
@@ -54,7 +54,12 @@
     },
     "visualization": {
       "vehicle_colors": {
-        "regular": [110, 110, 110, 255]
+        "regular": [
+          110,
+          110,
+          110,
+          255
+        ]
       }
     },
     "sumo_details": {
@@ -63,8 +68,12 @@
       "sumo_label": "demo_max_pressure"
     }
   },
-  "controller": {
-    "type": "max_pressure",
+  "recorder": {
+    "logs_dir": "logs/demo_max_pressure",
+    "log_type": "txt"
+  },
+  "logic_module": {
+    "type": "controller_max_pressure",
     "max_pressure": {
       "transition_duration": 3,
       "bidding_strategy": "phase_queue_length",
@@ -73,9 +82,5 @@
       "max_green_duration": 60,
       "auction_suspend_duration": 4
     }
-  },
-  "recorder": {
-    "logs_dir": "logs/demo_max_pressure",
-    "log_type": "txt"
   }
 }

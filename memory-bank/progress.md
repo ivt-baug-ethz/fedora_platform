@@ -9,18 +9,23 @@
 - Priority Pass implementation for Vienna pilot
 - SUMO integration for traffic simulation
 
-**Reorganized application components (in `src/`):**
-- `simulation_sumo.py` — SUMO/TraCI FSM, vehicle spawning, queue metrics, traffic-light commands
-- `controller_fixed_cycle.py` — Fixed-cycle controller FSM
-- `controller_max_pressure.py` — Max-pressure auction controller FSM
-- `controller_priority_pass.py` — Priority Pass auction controller FSM
-- `connector.py` — JSON-line TCP message router FSM
+**Orchestrator-driven components (in `src/`):**
+- `orchestrator.py` — Platform orchestrator FSM: reads full config, creates/starts all sub-components, drives simulation step loop via `"step"` / `"apply_and_advance"` messages
+- `simulation_sumo.py` — Passive SUMO/TraCI FSM: waits for `"step"` from Orchestrator, measurement types injected (not config-driven)
+- `controller_fixed_cycle.py` — Fixed-cycle controller FSM; `get_required_measurements()` returns `[]`
+- `controller_max_pressure.py` — Max-pressure controller FSM; `get_required_measurements()` returns queue metric based on bidding_strategy
+- `controller_priority_pass.py` — Priority Pass controller FSM; `get_required_measurements()` returns queue metric + `"upp_bids"`
 - `recorder.py` — TCP communication logger FSM writing to `logs/`
 
+**TCP communication (fixed 2026-06-25):**
+- All senders (`Orchestrator._forward`, `Simulation._send_message`, `*Controller._send_message`) use persistent connections — created on first use, reused per target, reset on OSError
+- All receivers (`_handle_client`) parse messages line-by-line from persistent connections
+- `Simulation._run_loop` has a 30-second safety timeout on `step_event.wait()`
+
 **Configuration and scenarios:**
-- Centralized configuration files in `configurations/` directory
+- Centralized configuration files in `configurations/` — `"enabled"` key removed from `lane_measurements` (auto-derived from controller)
 - Scenario-specific SUMO files organized in `scenarios/demo/sumo/` and `scenarios/pilot_*/`
-- `run.py` at root level loads configuration and orchestrates component startup
+- `run.py` is a thin entry point (~70 lines): creates Orchestrator, calls start/wait_until_done, runs Evaluator
 - SUMO executable resolution from PATH, `SUMO_HOME`, and platform-specific install locations
 
 **Testing:**

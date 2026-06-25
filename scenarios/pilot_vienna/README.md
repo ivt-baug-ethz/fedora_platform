@@ -9,8 +9,7 @@ pilot_vienna/
     config.sumocfg
     network.net.xml
     demand.xml
-    phase_bidder_lanes.json
-    phase_exit_lanes.json
+    phase_inc_lanes.json
     Route_*.json
 ```
 

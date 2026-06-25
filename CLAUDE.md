@@ -56,7 +56,7 @@ responsible for following the rules and updating the documentation.
 fedora_platform/
 ├── src/                    – Core application components
 │   ├── simulation_sumo.py  – SUMO simulator FSM
-│   ├── connector.py        – TCP message router
+│   ├── orchestrator.py     – TCP message router and sole orchestrator
 │   ├── recorder.py         – Communication logger
 │   └── controller_*.py     – Fixed-cycle, Max-pressure, Priority Pass controllers
 ├── run.py                  – Entry point for scenarios

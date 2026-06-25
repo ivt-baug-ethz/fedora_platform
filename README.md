@@ -48,7 +48,7 @@ src/
   controller_fixed_cycle.py    Fixed-cycle controller FSM
   controller_max_pressure.py   Max-pressure auction controller FSM
   controller_priority_pass.py  Priority-pass auction controller FSM
-  connector.py                 TCP JSON-line message router FSM
+  orchestrator.py                 TCP JSON-line message router FSM
   recorder.py                  Communication logger FSM
   evaluator.py                 Evaluation component for travel time analysis
 
@@ -68,8 +68,9 @@ scenarios/demo/sumo/
   route_*.json                 Route metadata
 
 tests/
-  test_core.py                 Component lifecycle and FSM tests
-  test_priority_pass.py        Priority-pass specific tests
+  test_evaluator.py            Evaluator unit tests (travel time calculation)
+  test_controllers.py          Controller FSM, auction logic, and measurement requirement tests
+  test_recorder.py             Recorder FSM, configuration, and TCP logging tests
 
 docs/
   STRUCTURE.md                 Directory structure and module responsibilities
@@ -89,17 +90,17 @@ The platform separates five core responsibilities:
 
 - **Execution Layer (Simulator / Pilot)**: Execution module onto which the selected module should be applied, abstracting interfaces specific to the selected simulation / pilot city environment (e.g. SUMO or the Vienna pilot) and exposes state (queue lengths, vehicle positions)
 - **Controller / Optimization Modules**: Depending on the type of module connected to the execution layer, specific simulator states are read and control outputs are generated (e.g. traffic signal timing decisions)
-- **Connector**: Routes JSON-line messages between Simulator, Controller, and Recorder over TCP
+- **Orchestrator**: Sole orchestrator — creates all sub-components, drives the simulation step loop, and routes JSON-line messages between Simulator, Controller, and Recorder over TCP
 - **Recorder**: Logs all inter-component communication for post-simulation analysis
-- **Storage**: Persists records and logs (currently to text files; SQLite backend available)
+- **Storage**: Persists records and logs to text files (additional backends planned)
 
 ### Finite State Machine Lifecycle
 
 Every component is modeled as a finite state machine. This makes composition explicit and allows each component to manage its own readiness without hidden state:
 
-- **CREATED** → **CONFIGURED** → **READY** → **RUNNING** → **PAUSED** → **RUNNING** → **STOPPED**
+- **CREATED** → **CONFIGURED** → **READY** → **RUNNING** → **STOPPED**
 - **FAILED** transitions are possible from any state; **STOPPED** can reconfigure
-- Components negotiate startup order through the Connector
+- Components are created and started in order by the Orchestrator
 
 ```mermaid
 stateDiagram-v2
@@ -107,8 +108,6 @@ stateDiagram-v2
     CREATED --> CONFIGURED: configure()
     CONFIGURED --> READY: resources prepared
     READY --> RUNNING: start()
-    RUNNING --> PAUSED: pause()
-    PAUSED --> RUNNING: start()
     RUNNING --> STOPPED: stop()
     READY --> STOPPED: stop()
     CONFIGURED --> STOPPED: stop()
@@ -117,23 +116,23 @@ stateDiagram-v2
     CONFIGURED --> FAILED: fail()
     READY --> FAILED: fail()
     RUNNING --> FAILED: fail()
-    PAUSED --> FAILED: fail()
     FAILED --> STOPPED: stop()
     STOPPED --> CONFIGURED: configure()
 ```
 
 ### Control Loop
 
-The components operate in a closed loop, applied to the example scenario of computing traffic signal timing decisions based on SUMO simulation state. The loop is as follows:
+The components operate in a closed loop, applied to the example scenario of computing traffic signal timing decisions based on SUMO simulation state. The Orchestrator actively orchestrates each iteration:
 
 ```
-1. Execution layer reads SUMO state (queue lengths, vehicle positions)
-2. Execution layer publishes "traffic_state" message via Connector
-3. Controller receives "traffic_state", computes next signal timing
-4. Controller publishes "control_command" message via Connector
-5. Execution layer receives "control_command", applies it to SUMO
-6. Recorder logs all messages for post-simulation analysis
-7. Loop repeats at SUMO step rate (~0.1s per step)
+1. Orchestrator sends "step" to Simulation
+2. Simulation reads SUMO state (queue lengths, vehicle positions), publishes "traffic_state"
+3. Orchestrator routes "traffic_state" to Controller
+4. Controller computes next signal timing, publishes "traffic_light_command"
+5. Orchestrator intercepts command, sends "apply_and_advance" to Simulation
+6. Simulation applies signal plan and advances one SUMO step
+7. Recorder logs all messages for post-simulation analysis
+8. Loop repeats at SUMO step rate (~0.1s per step)
 ```
 
 All communication is JSON-line over TCP (localhost, configurable ports). Component startup and shutdown order is coordinated through explicit state transitions.
@@ -144,9 +143,9 @@ Messages use a simple JSON envelope:
 
 ```json
 {
-  "timestamp": "2026-06-24T12:34:56Z",
-  "sender": "simulator",
-  "receiver": "controller",
+  "sent_at": 1750000000.0,
+  "sender": "simulation",
+  "target": "logic_module",
   "topic": "traffic_state",
   "payload": {
     "step": 1234,
@@ -158,14 +157,16 @@ Messages use a simple JSON envelope:
 
 Topics define the message contract (in the currently considered demonstration scenario with SUMO & traffic signal control):
 
-- `"traffic_state"` — Simulator → Controller: queue lengths, vehicle counts, signal state
-- `"control_command"` — Controller → Simulator: phase assignment, timing parameters
-- `"log_message"` — Any → Recorder: diagnostic and decision logs
-- `"recorder_ready"` — Recorder: startup complete, ready to receive messages
+- `"traffic_state"` — Simulation → Controller (via Orchestrator): queue lengths, vehicle counts, signal state
+- `"traffic_light_command"` — Controller → Orchestrator: signal phase assignment and timing
+- `"step"` — Orchestrator → Simulation: begin next measurement-collect iteration
+- `"apply_and_advance"` — Orchestrator → Simulation: apply signal plan and advance one SUMO step
+- `"simulation_started"` / `"simulation_stopped"` — Simulation → Orchestrator: lifecycle signals
+- `"communication"` — Orchestrator → Recorder: mirror of all routed messages
 
 ## System Flowchart
 
-The diagram shows component startup and the steady-state control loop. The main simulation loop (steps 6.1–6.7) repeats at SUMO's step rate (~0.1s per cycle) and represents the core of the methodology:
+The diagram shows component startup and the steady-state control loop. The main simulation loop (steps 6.1–6.6) repeats at SUMO's step rate (~0.1s per cycle) and represents the core of the methodology:
 
 ```mermaid
 %%{init: {'flowchart': {'curve': 'natural'}, 'theme': 'base'}}%%
@@ -174,39 +175,42 @@ graph TB
 
     subgraph startup["Startup Phase"]
         direction LR
-        Start -->|Initialize| Rec["Recorder"]
-        Rec -->|Initialize| Con["Connector"]
+        Start -->|Initialize| Con["Orchestrator<br/>(Orchestrator)"]
+        Con -->|Initialize| Rec["Recorder"]
         Con -->|Initialize| Ctrl["Controller"]
-        Ctrl -->|Initialize| Sim["Simulator"]
+        Con -->|Initialize| Sim["Simulator"]
     end
 
     startup --> Ready["✓ Pipeline Ready"]
 
     subgraph loop["Main Simulation Loop"]
         direction TB
-        Sim1["6.1 Simulator<br/>Reads state"]
-        Con1["6.2 Connector<br/>Routes"]
-        Ctrl1["6.3 Controller<br/>Computes phase"]
-        Sim2["6.4 Simulator<br/>Applies command"]
-        Rec1["6.5 Recorder<br/>Logs messages"]
+        Con0["6.1 Orchestrator<br/>Sends step"]
+        Sim1["6.2 Simulator<br/>Reads state"]
+        Con1["6.3 Orchestrator<br/>Routes"]
+        Ctrl1["6.4 Controller<br/>Computes phase"]
+        Sim2["6.5 Simulator<br/>Applies & advances"]
+        Rec1["6.6 Recorder<br/>Logs messages"]
 
+        Con0 -->|step| Sim1
         Sim1 -->|traffic_state| Con1
         Con1 -->|Route to| Ctrl1
-        Ctrl1 -->|control_command| Con1
-        Con1 -->|Broadcast| Sim2
+        Ctrl1 -->|traffic_light_command| Con1
+        Con1 -->|apply_and_advance| Sim2
         Con1 -->|Mirror| Rec1
-        Sim2 -->|Step forward| Sim1
+        Sim2 -->|Done| Con0
     end
 
     Ready --> loop
     Sim2 --> Check{Simulation<br/>complete?}
 
-    Check -->|No| Sim1
-    Check -->|Yes| End(["Shutdown"])
+    Check -->|No| Con0
+    Check -->|Yes| End(["Shutdown & Evaluate"])
 
     %% Styling: no fill, colors adapt to theme
     style Start stroke:#0969da,stroke-width:2px,color:#0969da
     style Ready stroke:#1f6feb,stroke-width:2px,color:#1f6feb
+    style Con0 stroke:#8957e5,stroke-width:1.5px,color:#8957e5
     style Sim1 stroke:#fb8500,stroke-width:1.5px,color:#fb8500
     style Sim2 stroke:#fb8500,stroke-width:1.5px,color:#fb8500
     style Con1 stroke:#8957e5,stroke-width:1.5px,color:#8957e5
@@ -222,18 +226,18 @@ graph TB
 
 The steady-state loop repeats at ~0.1s per cycle and is the core of the control system:
 
-1. **6.1** — Simulator reads current traffic state (queue lengths, vehicle positions)
-2. **6.2–6.3** — Connector routes traffic state to Controller, which computes the optimal signal phase
-3. **6.4** — Connector broadcasts control command back to Simulator
-4. **6.5** — Connector mirrors messages to Recorder for logging and analysis
-5. **6.6** — SUMO advances one simulation step, loop checks if simulation is complete
-6. **Loop back** to 6.1 if incomplete, or **Shutdown** when done
+1. **6.1** — Orchestrator sends a `step` command to the Simulator to begin a new iteration
+2. **6.2–6.3** — Simulator reads current SUMO state and publishes `traffic_state`; Orchestrator routes it to Controller
+3. **6.4** — Controller computes the optimal signal phase and publishes `traffic_light_command`
+4. **6.5** — Orchestrator intercepts the command and sends `apply_and_advance` to Simulator, which applies the signal plan and advances one SUMO step
+5. **6.6** — Orchestrator mirrors all messages to Recorder for logging and analysis
+6. **Loop back** to 6.1 if incomplete, or **Shutdown and evaluate** when done
 
-This closed-loop control enables adaptive traffic signal optimization. The phase computation algorithm depends on the selected controller strategy: fixed-cycle timing, max-pressure auction, or priority-pass optimization.
+This closed-loop control enables adaptive traffic signal optimization. The phase computation algorithm depends on the selected logic module strategy: fixed-cycle timing, max-pressure auction, or priority-pass optimization.
 
 ## Running Scenarios
 
-Each control strategy has its own configuration file. The naming convention is `{scenario}_sumo_{controller}_config.json`.
+Each control strategy has its own configuration file. The naming convention is `{scenario}_sumo_{logic_module}_config.json`.
 
 ### Demo Scenario Configs
 
@@ -289,11 +293,22 @@ python run.py --help
 
 ### Output
 
-- **Simulation logs:** `logs/{scenario}_{controller}/` — Complete trace of all decisions and state
+- **Simulation logs:** `logs/{scenario}_{logic_module}/` — Set per configuration file (`recorder.logs_dir`)
+  - `vehicle_log.jsonl` — Vehicle arrivals and departures with priority status
+  - `communication_log.txt` — All inter-component messages
   - Example: `logs/demo_fixed_cycle/`, `logs/vienna_priority_pass/`
-- **Vehicle event log:** `logs/{scenario}_{controller}/vehicle_log.jsonl` — Vehicle arrivals and departures with priority status
-- **Communication log:** `logs/{scenario}_{controller}/communication_log.txt` — All inter-component messages
+- **Evaluation results:** `results/{scenario}/{logic_module}/` — Generated automatically after each run
+  - `travel_time_distribution.png` — Histogram of regular and priority vehicle travel times
+  - `average_travel_time.png` — Cumulative average travel time over simulation time
+  - `evaluation_stats.json` — Summary statistics (mean, median, min/max travel times)
+  - Example: `results/demo/fixed_cycle/`, `results/vienna/priority_pass/`
 - **SUMO GUI:** Visual representation of vehicles and signal states (when `sumo-gui` is available)
+
+Pass `--skip-evaluation` to suppress post-run evaluation and visualization:
+
+```bash
+python run.py configurations/demo_sumo_fixed_cycle_config.json --skip-evaluation
+```
 
 ## Requirements
 

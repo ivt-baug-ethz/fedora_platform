@@ -1,12 +1,13 @@
 {
+  "scenario": "demo",
   "scenario_path": "scenarios/demo/sumo",
   "communication": {
     "host": "127.0.0.1",
     "ports": {
-      "connector": 51000,
+      "orchestrator": 51000,
       "simulation": 51001,
-      "controller": 51002,
-      "recorder": 51003
+      "recorder": 51003,
+      "logic_module": 51002
     },
     "socket_timeout": 2.0
   },
@@ -14,8 +15,7 @@
     "simulation_measurements": {
       "sumo": {
         "lane_measurements": {
-          "pressure_lanes": "phase_bidder_lanes.json",
-          "enabled": ["queue_lengths", "upp_bids"]
+          "pressure_lanes": "phase_inc_lanes.json"
         },
         "measurement_details": {
           "sensor_distance": 100.0
@@ -59,8 +59,18 @@
     },
     "visualization": {
       "vehicle_colors": {
-        "priority_pass": [30, 111, 192, 255],
-        "regular": [110, 110, 110, 255]
+        "priority_pass": [
+          30,
+          111,
+          192,
+          255
+        ],
+        "regular": [
+          110,
+          110,
+          110,
+          255
+        ]
       }
     },
     "sumo_details": {
@@ -69,8 +79,12 @@
       "sumo_label": "demo_priority_pass"
     }
   },
-  "controller": {
-    "type": "priority_pass",
+  "recorder": {
+    "logs_dir": "logs/demo_priority_pass",
+    "log_type": "txt"
+  },
+  "logic_module": {
+    "type": "controller_priority_pass",
     "priority_pass": {
       "transition_duration": 3,
       "bidding_strategy": "phase_queue_length",
@@ -80,9 +94,5 @@
       "auction_suspend_duration": 21,
       "trade_off": 0.6
     }
-  },
-  "recorder": {
-    "logs_dir": "logs/demo_priority_pass",
-    "log_type": "txt"
   }
 }

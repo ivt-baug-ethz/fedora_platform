@@ -1,12 +1,13 @@
 {
+  "scenario": "demo",
   "scenario_path": "scenarios/demo/sumo",
   "communication": {
     "host": "127.0.0.1",
     "ports": {
-      "connector": 51000,
+      "orchestrator": 51000,
       "simulation": 51001,
-      "controller": 51002,
-      "recorder": 51003
+      "recorder": 51003,
+      "logic_module": 51002
     },
     "socket_timeout": 2.0
   },
@@ -14,8 +15,7 @@
     "simulation_measurements": {
       "sumo": {
         "lane_measurements": {
-          "pressure_lanes": "phase_bidder_lanes.json",
-          "enabled": ["queue_lengths"]
+          "pressure_lanes": "phase_inc_lanes.json"
         },
         "measurement_details": {
           "sensor_distance": 100.0
@@ -54,7 +54,12 @@
     },
     "visualization": {
       "vehicle_colors": {
-        "regular": [110, 110, 110, 255]
+        "regular": [
+          110,
+          110,
+          110,
+          255
+        ]
       }
     },
     "sumo_details": {
@@ -63,11 +68,20 @@
       "sumo_label": "demo_fixed_cycle"
     }
   },
-  "controller": {
-    "type": "fixed_cycle",
+  "recorder": {
+    "logs_dir": "logs/demo_fixed_cycle",
+    "log_type": "txt"
+  },
+  "logic_module": {
+    "type": "controller_fixed_cycle",
     "fixed_cycle": {
       "transition_duration": 3,
-      "phase_durations": [29, 21, 29, 21],
+      "phase_durations": [
+        29,
+        21,
+        29,
+        21
+      ],
       "default_time_delay": 0,
       "time_delays": {
         "J25": 0,
@@ -81,9 +95,5 @@
         "J33": 0
       }
     }
-  },
-  "recorder": {
-    "logs_dir": "logs/demo_fixed_cycle",
-    "log_type": "txt"
   }
 }
