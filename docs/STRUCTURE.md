@@ -112,7 +112,7 @@ fedora_platform/
 
 - **Platform orchestrator**: reads the full JSON configuration and creates Recorder, LogicModule, and Environment internally
 - Routes JSON-line TCP messages between application components
-- Drives the environment step loop by intercepting `environment_started`, `traffic_light_command`, and `environment_stopped` topics
+- Drives the environment step loop by intercepting `environment_started`, `logic_command`, and `environment_stopped` topics
 - Sends `"step"` and `"apply_and_advance"` commands to Environment to control each iteration
 - Queries each logic module's `get_required_measurements()` to determine which metrics the Environment should collect; no user configuration of measurement types needed
 - Mirrors all traffic for logging to Recorder component

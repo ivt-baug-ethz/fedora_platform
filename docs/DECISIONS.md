@@ -115,12 +115,12 @@ The `Orchestrator` is now the sole orchestrator:
 - The Simulation is **passive**: its `_run_loop` waits on `step_event` at the top of each iteration.
   The Orchestrator drives the loop by intercepting three message topics in `_route()`:
   - `"simulation_started"` → sends first `"step"` to simulation
-  - `"traffic_light_command"` (from controller) → transforms into `"apply_and_advance"` + next `"step"`
+  - `"logic_command"` (from controller, with `payload.type == "traffic_light_command"`) → transforms into `"apply_and_advance"` + next `"step"`
   - `"simulation_stopped"` → sets `done_event`, stops routing
 
 Two new orchestrator→simulation message topics:
-- `"step"` — begin next iteration (collect measurements, send traffic_state)
-- `"apply_and_advance"` — apply the given signal plan and advance SUMO one step
+- `"step"` — begin next iteration (collect state, send traffic_state)
+- `"apply_and_advance"` — apply the merged logic commands and advance the environment by one step
 
 The internal step sequence inside `_run_step` is unchanged: spawn → track → collect → send state →
 wait for apply → apply → simulationStep.
@@ -133,7 +133,7 @@ wait for apply → apply → simulationStep.
 - Swapping the simulation environment requires implementing the `"step"` and `"apply_and_advance"`
   message handlers; no changes to the orchestrator or controllers.
 - The `"enabled"` list is removed from all JSON config files; measurement selection is automatic.
-- Simulation cannot run standalone without a Orchestrator (by design — it waits for `step_event`).
+- The Environment cannot run standalone without an Orchestrator (by design — it waits for `step_event`).
 
 ---
 
@@ -252,9 +252,9 @@ ordered array of objects). The Orchestrator is updated to:
   in reverse order.
 - Intercept `"traffic_state"` in `_route()` and fan it out to every logic module simultaneously
   (replacing the previous passthrough to a single target).
-- Accumulate `"traffic_light_command"` responses in a per-step counter; once all N modules have
+- Accumulate `"logic_command"` responses (with `payload.type == "traffic_light_command"`) in a per-step counter; once all N modules have
   replied, merge their command dicts and send a single `"apply_and_advance"` to the simulation.
-  Commands for the same traffic light from multiple modules are merged with last-write-wins
+  Commands for the same key from multiple modules are merged with last-write-wins
   semantics (non-deterministic for conflicting assignments).
 - Collect required measurements as the union (preserving order) of each module's
   `get_required_measurements()` return value.
@@ -268,7 +268,6 @@ ordered array of objects). The Orchestrator is updated to:
   array and keeping the `"logic_module"` port key unchanged.
 - Adding a second logic module to a run requires only a new array entry in the config and a new port
   key in `communication.ports` (no Python changes).
-- With a single module the behaviour is identical to before: the first and only response from
-  `"traffic_light_command"` immediately triggers `"apply_and_advance"`.
-- Conflicting traffic-light assignments from multiple modules are merged with last-write-wins order;
-  callers are responsible for assigning disjoint traffic-light sets if determinism is required.
+- With a single module the behaviour is identical to before: the first and only `"logic_command"` response immediately triggers `"apply_and_advance"`.
+- Conflicting command assignments from multiple modules are merged with last-write-wins order;
+  callers are responsible for assigning disjoint target sets if determinism is required.

@@ -15,7 +15,7 @@ renamed accordingly. All 6 configs updated; 69 tests pass.
 
 The Orchestrator now supports an ordered array of logic modules per run. Config key changed from
 `"logic_module"` (object) to `"logic_modules"` (array). The Orchestrator fans `traffic_state` out
-to all modules simultaneously, accumulates all `traffic_light_command` responses per step, merges
+to all modules simultaneously, accumulates all `logic_command` responses per step, merges
 their command dicts, and then sends a single `apply_and_advance`. Single-module behavior is
 unchanged. All 6 JSON config files updated; all 69 tests pass; pylint at 9.73/10.
 
@@ -110,7 +110,7 @@ All `src/` files were comprehensively cleaned up:
 
 1. End-to-end test with SUMO GUI against all three controller configs (requires SUMO installation)
 2. Extend test suite to cover `get_required_measurements()` on all controller types
-3. Add unit tests for Orchestrator orchestration hooks (simulation_started, traffic_light_command interception)
+3. Add unit tests for Orchestrator orchestration hooks (simulation_started, logic_command interception)
 4. Implement remaining pilot scenario integrations
 
 ## Active Decisions

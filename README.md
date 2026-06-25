@@ -89,8 +89,8 @@ memory-bank/
 The platform separates five core responsibilities:
 
 - **Environment**: A single pluggable environment component per configuration, specified by `"type"` in the `"environment"` config section. Currently `"sumo_simulation"` (SUMO/TraCI) is supported; future types can target real-world pilot deployments. Exposes state (queue lengths, vehicle positions) to Logic Modules via the Orchestrator
-- **Logic Modules**: One or more pluggable modules receive the simulation state and generate control outputs (e.g. traffic signal timing decisions). All modules run each step; their command dicts are merged before being applied
-- **Orchestrator**: Sole orchestrator — creates all sub-components, drives the simulation step loop, and routes JSON-line messages between Simulator, Logic Modules, and Recorder over TCP
+- **Logic Modules**: One or more pluggable modules receive the environment state and generate control outputs (e.g. traffic signal timing decisions in the current SUMO scenario). All modules run each step; their command dicts are merged before being applied
+- **Orchestrator**: Sole orchestrator — creates all sub-components, drives the step loop, and routes JSON-line messages between Environment, Logic Modules, and Recorder over TCP
 - **Recorder**: Logs all inter-component communication for post-simulation analysis
 - **Storage**: Persists records and logs to text files (additional backends planned)
 
@@ -122,17 +122,17 @@ stateDiagram-v2
 
 ### Control Loop
 
-The components operate in a closed loop, applied to the example scenario of computing traffic signal timing decisions based on SUMO simulation state. The Orchestrator actively orchestrates each iteration:
+The components operate in a closed loop. The Orchestrator actively orchestrates each iteration:
 
 ```
 1. Orchestrator sends "step" to Environment
-2. Environment reads SUMO state (queue lengths, vehicle positions), publishes "traffic_state"
+2. Environment collects current state and publishes "traffic_state"
 3. Orchestrator fans "traffic_state" out to all Logic Modules simultaneously
-4. Each Logic Module computes its signal timing decision and publishes "traffic_light_command"
+4. Each Logic Module computes its decision and publishes a "logic_command"
 5. Orchestrator accumulates responses; once all modules have replied, merges commands and sends "apply_and_advance" to Environment
-6. Environment applies the merged signal plan and advances one SUMO step
+6. Environment applies the merged commands and advances one step
 7. Recorder logs all messages for post-simulation analysis
-8. Loop repeats at SUMO step rate (~0.1s per step)
+8. Loop repeats at the environment's step rate (e.g. ~0.1s per step for SUMO)
 ```
 
 All communication is JSON-line over TCP (localhost, configurable ports). Component startup and shutdown order is coordinated through explicit state transitions.
@@ -155,18 +155,18 @@ Messages use a simple JSON envelope:
 }
 ```
 
-Topics define the message contract (in the currently considered demonstration scenario with SUMO & traffic signal control):
+Topics define the message contract:
 
-- `"traffic_state"` — Environment → Logic Module(s) (via Orchestrator fan-out): queue lengths, vehicle counts, signal state
-- `"traffic_light_command"` — Logic Module(s) → Orchestrator: signal phase assignment and timing; one response per module per step
-- `"step"` — Orchestrator → Environment: begin next measurement-collect iteration
-- `"apply_and_advance"` — Orchestrator → Environment: apply signal plan and advance one SUMO step
+- `"traffic_state"` — Environment → Logic Module(s) (via Orchestrator fan-out): current environment state observations (e.g. queue lengths, vehicle counts, signal state in the SUMO traffic scenario)
+- `"logic_command"` — Logic Module(s) → Orchestrator: decision output from a logic module; payload includes a `"type"` field (e.g. `"traffic_light_command"`) identifying the command kind; one response per module per step
+- `"step"` — Orchestrator → Environment: begin next state-collection iteration
+- `"apply_and_advance"` — Orchestrator → Environment: apply the merged logic commands and advance the environment by one step
 - `"environment_started"` / `"environment_stopped"` — Environment → Orchestrator: lifecycle signals
 - `"communication"` — Orchestrator → Recorder: mirror of all routed messages
 
 ## System Flowchart
 
-The diagram shows component startup and the steady-state control loop. The main simulation loop (steps 6.1–6.6) repeats at SUMO's step rate (~0.1s per cycle) and represents the core of the methodology:
+The diagram shows component startup and the steady-state control loop. The main loop (steps 6.1–6.6) repeats at the environment's step rate and represents the core of the methodology:
 
 ```mermaid
 %%{init: {'flowchart': {'curve': 'natural'}, 'theme': 'base'}}%%
@@ -186,10 +186,10 @@ graph TB
     subgraph loop["Main Simulation Loop"]
         direction TB
         Con0["6.1 Orchestrator<br/>Sends step"]
-        Sim1["6.2 Simulator<br/>Reads state"]
+        Sim1["6.2 Environment<br/>Reads state"]
         Con1["6.3 Orchestrator<br/>Fan-out"]
-        LM1["6.4 Logic Module(s)<br/>Compute phase (×N)"]
-        Sim2["6.5 Simulator<br/>Applies & advances"]
+        LM1["6.4 Logic Module(s)<br/>Compute decision (×N)"]
+        Sim2["6.5 Environment<br/>Applies & advances"]
         Rec1["6.6 Recorder<br/>Logs messages"]
 
         Con0 -->|step| Sim1
@@ -225,16 +225,16 @@ graph TB
 
 **Core Methodology: Main Simulation Loop**
 
-The steady-state loop repeats at ~0.1s per cycle and is the core of the control system:
+The steady-state loop repeats at the environment's step rate (e.g. ~0.1s per cycle for SUMO) and is the core of the control system:
 
 1. **6.1** — Orchestrator sends a `step` command to the Environment to begin a new iteration
-2. **6.2–6.3** — Environment reads current SUMO state and publishes `traffic_state`; Orchestrator fans it out to all configured Logic Modules simultaneously
-3. **6.4** — Each Logic Module independently computes its signal phase decision and publishes a `traffic_light_command` response (N responses total for N modules)
-4. **6.5** — Orchestrator accumulates responses; once all N modules have replied, it merges their command dicts and sends a single `apply_and_advance` to the Environment, which applies the merged plan and advances one SUMO step
+2. **6.2–6.3** — Environment collects current state and publishes `traffic_state`; Orchestrator fans it out to all configured Logic Modules simultaneously
+3. **6.4** — Each Logic Module independently computes its decision and publishes a `logic_command` response (N responses total for N modules)
+4. **6.5** — Orchestrator accumulates responses; once all N modules have replied, it merges their command dicts and sends a single `apply_and_advance` to the Environment, which applies the merged commands and advances one step
 5. **6.6** — Orchestrator mirrors all messages to Recorder for logging and analysis
 6. **Loop back** to 6.1 if incomplete, or **Shutdown and evaluate** when done
 
-This closed-loop control enables adaptive traffic signal optimization. A single logic module runs per step by default; multiple modules can be stacked by listing them in the `"logic_modules"` array in the configuration. Each module's phase computation is independent — the merged command dict is sent as a single `apply_and_advance` after all modules respond.
+This closed-loop architecture enables adaptive decision-making over a simulation environment. A single logic module runs per step by default; multiple modules can be stacked by listing them in the `"logic_modules"` array in the configuration. Each module's computation is independent — the merged command dict is sent as a single `apply_and_advance` after all modules respond.
 
 ## Running Scenarios
 

@@ -161,7 +161,7 @@ environment collects measurements → sends "traffic_state" to orchestrator
     ↓
 Orchestrator intercepts "traffic_state" → fans out to ALL logic modules
     ↓
-each logic module computes plan → sends "traffic_light_command" to orchestrator
+each logic module computes plan → sends "logic_command" (with payload.type="traffic_light_command") to orchestrator
     ↓
 Orchestrator accumulates responses; once all N modules replied:
   → merges command dicts → sends "apply_and_advance" + next "step" to environment
