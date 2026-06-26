@@ -1,18 +1,13 @@
-# FEDORA Models
+# FEDORA Scenarios
 
-This folder contains model and pilot-specific assets that are part of the main
-repository. Runtime code should resolve pilot assets from here, not from external
-example folders.
-
-Runtime Python code belongs in `src/fedora_platform/`. Model folders should
-contain network files, demand files, configuration, calibration data, and other
-pilot assets.
+This folder contains scenario-specific assets (SUMO network files, demand files, route
+metadata, and phase configuration). Runtime Python code lives in `src/`.
 
 ```text
-models/
-  demo/                  Example model for demonstration and testing
-  pilot_vienna/
-    sumo/                SUMO network, demand, route and phase files
+scenarios/
+  demo/
+    sumo/              SUMO network, demand, route and phase files for the demo scenario
+  pilot_vienna/        Vienna pilot SUMO assets
   pilot_basque_country/  Reserved for freight logistics hub integration models
   pilot_nicosia/         Reserved for aerial and road traffic integration models
   pilot_copenhagen/      Reserved for foresight simulation models

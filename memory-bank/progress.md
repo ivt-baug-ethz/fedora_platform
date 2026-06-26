@@ -50,29 +50,22 @@
 
 ## Test Coverage Assessment
 
-### src/fedora_platform/components.py
+### tests/test_controllers.py
 
-- Tests cover basic component lifecycle and state transitions.
-- Test suite confirms correct handling of valid and invalid transitions.
+- FSM lifecycle for all 3 controller types (fixed-cycle, max-pressure, priority-pass)
+- `get_required_measurements()` for all controller types
+- Fixed-cycle phase progression
+- Max-pressure auction winner selection and bid extraction
+- Priority-pass tau bid blending
+- Orchestrator logic module instantiation by type
 
-### src/fedora_platform/priority_pass.py
+### tests/test_evaluator.py
 
-- Tests cover Priority Pass optimizer, simulator, and pilot implementation.
-- Tests verify correct control settings generation and simulation functionality.
-- Tests verify message handling between components.
+- Evaluator unit tests (travel time calculation, statistics, plot generation)
 
-### src/fedora_platform/mtm_space.py
+### tests/test_recorder.py
 
-- Tests cover MTM Space functionality including component registration and step execution.
-
-### src/fedora_platform/communication.py
-
-- Tests cover message bus functionality including message routing, subscriptions, and delivery.
-
-### src/fedora_platform/storage.py
-
-- Tests cover all data storage backends (memory, JSON, SQLite).
-- Tests verify interaction logging functionality.
+- Recorder FSM, configuration, and TCP logging tests
 
 ## Pilot Readiness
 

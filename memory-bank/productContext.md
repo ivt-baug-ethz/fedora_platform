@@ -3,36 +3,30 @@
 ## Platform Overview
 The FEDORA Platform is a research platform designed for multimodal traffic management systems. It implements a component-based architecture where optimization modules, simulators, pilot systems, data storage, and communication mechanisms are all treated as stateful components with a shared finite-state machine lifecycle.
 
-## MTM Space Concept
-An MTM Space is a container that coordinates related components through a shared communication system. It allows different components (optimizers, simulators, pilots, data storages) to work together in a synchronized way while maintaining their individual responsibilities.
-
 ## The Priority Pass
-The Priority Pass is a traffic-light control algorithm implemented in the Vienna pilot. It:
-- Uses auctions to dynamically allocate green time to traffic phases
-- Implements a trade-off parameter between fairness and efficiency
-- Operates within SUMO simulations in the Vienna pilot area
-- Manages traffic-light phases with minimum green time enforcement
-- Supports traffic-light phase control using a finite state machine in SUMO
 
-## Pilot Structure
-The platform uses the src/ codebase to define the reusable components and the models/pilot_* directories to contain pilot-specific assets:
-- src/ contains all core components and implementation
-- models/pilot_vienna/ contains SUMO network, demand, route, and phase files for the Vienna pilot (primary pilot)
-- Other models/pilot_* folders exist for additional pilot sites but have no specific functional implementation yet
+The Urban Priority Pass (UPP) is the custom-developed traffic-light control algorithm. It:
+- Extends Max-Pressure with a priority bidding mechanism for designated vehicles (e.g. transit)
+- Uses an auction to dynamically allocate green time to traffic phases
+- Implements a configurable trade-off parameter (tau) between transit priority and network efficiency
+- Manages traffic-light phases with minimum green time enforcement
+
+## Platform Structure
+
+- `src/` — All runtime components (orchestrator, environment adapter, controllers, recorder, evaluator)
+- `scenarios/` — Scenario-specific SUMO assets (network, demand, route, phase files)
+  - `scenarios/demo/sumo/` — Demo scenario (functional, used for testing)
+  - `scenarios/pilot_vienna/` — Vienna pilot SUMO assets (functional)
+  - `scenarios/pilot_*/` — Other pilot sites (skeleton directories, not yet integrated)
+- `configurations/` — JSON configuration files (one per scenario × controller combination)
+- `run.py` — Thin entry point; delegates all lifecycle management to the Orchestrator
 
 ## Communication Model
-Components communicate through a message bus:
-- Messages are typed (topic-based) and carry payloads
-- Components register with the message bus to receive messages
-- Messages flow through an in-memory bus for local testing (InMemoryMessageBus)
-- Components can publish responses to specific topics to trigger downstream actions
 
-## Storage Model
-The platform supports multiple storage backends:
-- **Memory**: For testing and temporary storage
-- **JSON Files**: One JSON file per key for readable artifacts  
-- **SQLite**: Full-featured local database for storing records and interaction logs
-- The SQLite interaction store can optionally log every message published to the bus
+Components communicate over persistent localhost TCP connections using JSON-line messages:
+- Each message is a newline-terminated JSON object with `sender`, `target`, `topic`, and `payload`
+- The Orchestrator routes messages between Environment, Logic Module(s), and Recorder
+- All senders reuse one persistent socket per target (created on first use, reset on OSError)
 
 ## Known Limitations or Open Issues
 - The Vienna pilot implementation is the only fully functional pilot

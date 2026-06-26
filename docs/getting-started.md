@@ -1,0 +1,80 @@
+# Getting Started
+
+## Requirements
+
+- **Python 3.13** (required)
+- **SUMO 1.19.0+** (for simulation scenarios)
+  - macOS: `brew install sumo`
+  - Linux: install via package manager or from [sumo.dlr.de](https://sumo.dlr.de)
+  - Ensure `sumo` or `sumo-gui` is on PATH, or set the `SUMO_HOME` environment variable
+
+## Installation
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/sjschlapbach/fedora_platform.git
+   cd fedora_platform
+   ```
+
+2. Create and activate a virtual environment:
+   ```bash
+   python3.13 -m venv venv
+   source venv/bin/activate   # Windows: venv\Scripts\activate
+   ```
+
+3. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+4. Verify the setup:
+   ```bash
+   pytest tests/ -v
+   ```
+
+## Running a Scenario
+
+Each control strategy has its own configuration file. The naming convention is `{scenario}_sumo_{logic_module}_config.json`.
+
+### Demo Scenario
+
+```bash
+# Fixed-Cycle
+python run.py configurations/demo_sumo_fixed_cycle_config.json
+
+# Max-Pressure
+python run.py configurations/demo_sumo_max_pressure_config.json
+
+# Urban Priority Pass (default)
+python run.py configurations/demo_sumo_priority_pass_config.json
+
+# Shorthand for the default (priority-pass demo)
+python run.py
+```
+
+### Vienna Pilot Scenario
+
+```bash
+python run.py configurations/vienna_sumo_fixed_cycle_config.json
+python run.py configurations/vienna_sumo_max_pressure_config.json
+python run.py configurations/vienna_sumo_priority_pass_config.json
+```
+
+### Options
+
+```bash
+python run.py --help                 # list all options
+python run.py <config> --skip-evaluation   # skip post-run evaluation plots
+```
+
+## Output
+
+| Path | Contents |
+|---|---|
+| `logs/{scenario}_{logic_module}/communication_log.txt` | All inter-component TCP messages |
+| `logs/{scenario}_{logic_module}/vehicle_log.jsonl` | Vehicle arrival/departure events |
+| `results/{scenario}/{logic_module}/travel_time_distribution.png` | Travel time histogram |
+| `results/{scenario}/{logic_module}/average_travel_time.png` | Cumulative average travel time |
+| `results/{scenario}/{logic_module}/vehicle_counts.png` | Total vehicle count over time |
+| `results/{scenario}/{logic_module}/evaluation_stats.json` | Summary statistics |
+

@@ -223,7 +223,10 @@ __marimo__/
 .DS_Store
 
 # LLMs
-docs/scratchpad.md
+.agent-docs/scratchpad.md
+
+# MkDocs build output
+site/
 
 # runtime logs and evaluation results
 logs/

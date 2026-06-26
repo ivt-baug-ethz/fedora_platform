@@ -21,13 +21,14 @@ with support for optimization, simulation, pilot systems, data storage, and comm
 The following files are the **single source of truth** for the repository's state.
 Every agent **MUST** keep them up to date. Failure to do so is treated as an incomplete task.
 
-| File                   | Purpose                                                  | Update trigger                           |
-| ---------------------- | -------------------------------------------------------- | ---------------------------------------- |
-| `README.md`            | Platform overview, how to run scenarios, architecture    | When code behavior or entry point changes |
-| `docs/STRUCTURE.md`    | Annotated directory tree with module responsibilities    | Any file/folder added, moved, or removed |
-| `docs/DECISIONS.md`    | Architectural Decision Records (ADRs)                    | Any non-trivial tech or design choice    |
-| `docs/INTEGRATIONS.md` | External tools, simulators, and their config patterns    | When external dependency changes         |
-| `docs/scratchpad.md`   | Per-session working memory (tasks, learnings, dead ends) | Continuously during every session        |
+| File                          | Purpose                                                  | Update trigger                           |
+| ----------------------------- | -------------------------------------------------------- | ---------------------------------------- |
+| `README.md`                   | Platform overview, how to run scenarios, architecture    | When code behavior or entry point changes |
+| `.agent-docs/STRUCTURE.md`    | Annotated directory tree with module responsibilities    | Any file/folder added, moved, or removed |
+| `.agent-docs/DECISIONS.md`    | Architectural Decision Records (ADRs)                    | Any non-trivial tech or design choice    |
+| `.agent-docs/INTEGRATIONS.md` | External tools, simulators, and their config patterns    | When external dependency changes         |
+| `.agent-docs/scratchpad.md`   | Per-session working memory (tasks, learnings, dead ends) | Continuously during every session        |
+| `docs/`                       | **User-facing MkDocs documentation** (deployed to GitHub Pages) | When components, setup, interfaces, or architecture change |
 
 ### Update Protocol (MANDATORY)
 
@@ -36,12 +37,15 @@ At the **end of every task**, before considering it complete, you MUST:
 1. **`README.md`** — Ensure the "Running Scenarios" and "Architecture" sections match current
    code and entry points. If you changed how scenarios are configured or run, update the
    corresponding examples and file paths in the README.
-2. **`docs/STRUCTURE.md`** — Update the directory tree if any files or folders were added,
+2. **`.agent-docs/STRUCTURE.md`** — Update the directory tree if any files or folders were added,
    removed, or had their responsibilities changed.
-3. **`docs/DECISIONS.md`** — Add an ADR if a non-obvious architectural or algorithmic choice
+3. **`.agent-docs/DECISIONS.md`** — Add an ADR if a non-obvious architectural or algorithmic choice
    was made.
-4. **`docs/scratchpad.md`** — Update task progress, mark completed sub-tasks, and record any
+4. **`.agent-docs/scratchpad.md`** — Update task progress, mark completed sub-tasks, and record any
    learnings or dead ends encountered during the session.
+5. **`docs/`** — Update the relevant user-facing MkDocs pages if you changed components, setup
+   instructions, interfaces, configuration, or architecture. The pages in `docs/` are deployed to
+   GitHub Pages and must stay in sync with the implementation.
 
 > If you are unsure whether a change warrants a docs update, err on the side of updating.
 > A one-line entry is always better than silence.
@@ -73,11 +77,12 @@ fedora_platform/
 │   ├── pilot_copenhagen/
 │   ├── pilot_reggio_emilia/
 │   └── pilot_budapest/
-├── docs/                      – LLM-maintained documentation (see above)
+├── .agent-docs/               – LLM-maintained documentation (see above)
 │   ├── STRUCTURE.md
 │   ├── DECISIONS.md
 │   ├── INTEGRATIONS.md
 │   └── scratchpad.md
+├── docs/                      – User-facing MkDocs documentation (deployed to GitHub Pages)
 ├── figures/                   – Pilot images and repository banner
 ├── example/                   – Run scripts (e.g. run_priority_pass.py)
 ├── requirements.txt           – Pinned dependencies
@@ -89,7 +94,7 @@ fedora_platform/
 - All source code lives under `src/`. Tests are co-located under `src/tests/`.
 - Do **not** create new top-level directories without explicit instruction.
 - Use relative imports within `src/`; use absolute imports across packages.
-- After any structural change, update `docs/STRUCTURE.md` immediately.
+- After any structural change, update `.agent-docs/STRUCTURE.md` immediately.
 
 ---
 
@@ -183,7 +188,7 @@ persistent working memory across sessions.
 
 ## Scratchpad Format
 
-When updating `docs/scratchpad.md`, use this structure for each session:
+When updating `.agent-docs/scratchpad.md`, use this structure for each session:
 
 ```markdown
 ## Task: <short description>

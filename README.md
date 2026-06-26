@@ -4,6 +4,8 @@
 
 # FEDORA — Traffic Management Orchestration Framework
 
+**[Full documentation →](https://ivt-baug-ethz.github.io/fedora_platform/)**
+
 A modular orchestration framework for integrating traffic logic modules (such as traffic signal controllers, demand models, etc.) with compatible simulation environments or real-world deployment sites. The framework decouples decision logic from environment execution through a JSON-line message-passing architecture over TCP: an Orchestrator routes state observations from the environment to all connected logic modules and feeds their merged decisions back to the environment each step.
 
 **This repository demonstrates the framework** at the example of traffic signal control. Three signal controllers — Fixed-Cycle, Max-Pressure, and the custom-developed Urban Priority Pass (UPP) — are connected to SUMO (Simulation of Urban MObility) as the executing environment. The architecture is not specific to traffic signal control: any logic module that produces a compatible command in response to an environment state observation can be plugged in, and any environment that implements the `step` / `apply_and_advance` message contract can serve as the execution backend.
@@ -76,11 +78,18 @@ tests/
   test_controllers.py          Controller FSM, auction logic, and measurement requirement tests
   test_recorder.py             Recorder FSM, configuration, and TCP logging tests
 
-docs/
+.agent-docs/
   STRUCTURE.md                 Directory structure and module responsibilities
   DECISIONS.md                 Architectural decision records
   INTEGRATIONS.md              External tool integration guides
   scratchpad.md                Session working notes
+
+docs/
+  index.md                     Home page (deployed to GitHub Pages)
+  getting-started.md           Setup and installation guide
+  architecture.md              Architecture overview
+  components.md                Component reference
+  configuration.md             Configuration reference
 
 memory-bank/
   Persistent project context (see CLAUDE.md for guidelines)
@@ -348,6 +357,14 @@ python run.py configurations/demo_sumo_fixed_cycle_config.json --skip-evaluation
    ```bash
    python run.py
    ```
+
+## Documentation
+
+Full user-facing documentation — setup guide, architecture overview, component reference, and configuration reference — is available at:
+
+**[https://ivt-baug-ethz.github.io/fedora_platform/](https://ivt-baug-ethz.github.io/fedora_platform/)**
+
+The documentation source lives in `docs/` and is automatically deployed to GitHub Pages on every push to `main`.
 
 ## Development
 

@@ -11,8 +11,7 @@ fedora_platform/
 │   ├── recorder.py                – TCP communication logger FSM
 │   └── evaluator.py               – Evaluation component for delay analysis and visualization
 │
-├── run.py                         – Thin entry point: parses CLI args and starts the Orchestrator
-├── evaluate.py                    – Standalone script to evaluate simulation results
+├── run.py                         – Thin entry point: parses CLI args, starts Orchestrator, runs Evaluator
 │
 ├── tests/                         – Unit and integration tests
 │   ├── test_core.py               – Core component lifecycle and message bus tests
@@ -64,11 +63,20 @@ fedora_platform/
 │   │   └── fixed_cycle/
 │   └── {scenario}/{logic_module}/   – Evaluation output structure
 │
-├── docs/                          – LLM-maintained documentation (MANDATORY)
+├── .agent-docs/                   – LLM-maintained documentation (MANDATORY)
 │   ├── STRUCTURE.md               – This file (directory tree and responsibilities)
 │   ├── DECISIONS.md               – Architectural Decision Records (ADRs)
 │   ├── INTEGRATIONS.md            – External tool integrations and setup
 │   └── scratchpad.md              – Per-session working memory and progress
+│
+├── docs/                          – User-facing MkDocs documentation (deployed to GitHub Pages)
+│   ├── index.md                   – Home page
+│   ├── getting-started.md         – Installation and running scenarios
+│   ├── architecture.md            – Architecture overview and diagrams
+│   ├── components.md              – Component reference
+│   └── configuration.md          – Configuration reference
+│
+├── mkdocs.yml                     – MkDocs + Material configuration
 │
 ├── memory-bank/                   – Persistent project context (read/update every session)
 │   ├── projectbrief.md            – Project scope and goals (read-only)
@@ -82,6 +90,10 @@ fedora_platform/
 │
 ├── .github/                       – GitHub-specific files
 │   └── workflows/                 – GitHub Actions CI/CD workflows
+│       ├── docs.yml               – Deploy MkDocs documentation to GitHub Pages
+│       ├── lint.yml               – Pylint code quality check
+│       ├── python_testing.yml     – pytest test suite
+│       └── format_check.yml       – Code formatting check
 │
 ├── venv/                          – Python virtual environment (auto-created)
 │
