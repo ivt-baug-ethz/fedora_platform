@@ -11,18 +11,21 @@
 ## Installation
 
 1. Clone the repository:
+
    ```bash
    git clone https://github.com/sjschlapbach/fedora_platform.git
    cd fedora_platform
    ```
 
 2. Create and activate a virtual environment:
+
    ```bash
    python3.13 -m venv venv
    source venv/bin/activate   # Windows: venv\Scripts\activate
    ```
 
 3. Install dependencies:
+
    ```bash
    pip install -r requirements.txt
    ```
@@ -39,7 +42,10 @@ Each control strategy has its own configuration file. The naming convention is `
 ### Demo Scenario
 
 ```bash
-# Fixed-Cycle
+# Baseline — no controller, SUMO default signal plans (performance reference)
+python run.py configurations/demo_sumo_baseline_config.json
+
+# Configurable Fixed-Cycle
 python run.py configurations/demo_sumo_fixed_cycle_config.json
 
 # Max-Pressure
@@ -55,6 +61,10 @@ python run.py
 ### Vienna Pilot Scenario
 
 ```bash
+# Baseline — no controller, SUMO default signal plans (performance reference)
+python run.py configurations/vienna_sumo_baseline_config.json
+
+# Configurable Fixed-Cycle, Max-Pressure, Urban Priority Pass
 python run.py configurations/vienna_sumo_fixed_cycle_config.json
 python run.py configurations/vienna_sumo_max_pressure_config.json
 python run.py configurations/vienna_sumo_priority_pass_config.json
@@ -69,12 +79,11 @@ python run.py <config> --skip-evaluation   # skip post-run evaluation plots
 
 ## Output
 
-| Path | Contents |
-|---|---|
-| `logs/{scenario}_{logic_module}/communication_log.txt` | All inter-component TCP messages |
-| `logs/{scenario}_{logic_module}/vehicle_log.jsonl` | Vehicle arrival/departure events |
-| `results/{scenario}/{logic_module}/travel_time_distribution.png` | Travel time histogram |
-| `results/{scenario}/{logic_module}/average_travel_time.png` | Cumulative average travel time |
-| `results/{scenario}/{logic_module}/vehicle_counts.png` | Total vehicle count over time |
-| `results/{scenario}/{logic_module}/evaluation_stats.json` | Summary statistics |
-
+| Path                                                             | Contents                         |
+| ---------------------------------------------------------------- | -------------------------------- |
+| `logs/{scenario}_{logic_module}/communication_log.txt`           | All inter-component TCP messages |
+| `logs/{scenario}_{logic_module}/vehicle_log.jsonl`               | Vehicle arrival/departure events |
+| `results/{scenario}/{logic_module}/travel_time_distribution.png` | Travel time histogram            |
+| `results/{scenario}/{logic_module}/average_travel_time.png`      | Cumulative average travel time   |
+| `results/{scenario}/{logic_module}/vehicle_counts.png`           | Total vehicle count over time    |
+| `results/{scenario}/{logic_module}/evaluation_stats.json`        | Summary statistics               |

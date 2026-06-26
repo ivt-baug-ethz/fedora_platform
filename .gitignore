@@ -224,6 +224,7 @@ __marimo__/
 
 # LLMs
 .agent-docs/scratchpad.md
+.claude/
 
 # MkDocs build output
 site/

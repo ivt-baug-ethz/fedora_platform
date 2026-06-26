@@ -23,11 +23,18 @@ The framework provides:
 
 ## Demonstrator: Traffic Signal Controllers
 
-The following three logic modules implement traffic signal control strategies as demonstrators of the framework. Each module shares the same message interface — receiving `traffic_state` observations from the SUMO environment and returning `logic_command` decisions to the Orchestrator — and can be swapped or combined without changes to any other component.
+The following logic modules implement traffic signal control strategies as demonstrators of the framework. Each module shares the same message interface — receiving `traffic_state` observations from the SUMO environment and returning `logic_command` decisions to the Orchestrator — and can be swapped or combined without changes to any other component.
 
-### 1. Fixed-Cycle Controller
+### 0. Baseline (No Controller)
 
-Pre-timed signal schedules with offset coordination across intersections. Each intersection cycles through fixed phase durations regardless of traffic conditions. Simple and predictable, but cannot adapt to demand changes.
+Runs the simulation with SUMO's built-in signal plans and no external controller. The Orchestrator sends an empty `apply_and_advance` command each step, leaving all traffic lights under SUMO's default timing. Use this as the performance reference against which all active controllers are compared.
+
+**Demo Configuration:** `configurations/demo_sumo_baseline_config.json`  
+**Vienna Configuration:** `configurations/vienna_sumo_baseline_config.json`
+
+### 1. Configurable Fixed-Cycle Controller
+
+User-defined pre-timed signal schedules with configurable per-phase green durations, transition (amber) duration, and per-intersection startup time offsets. Each intersection cycles through its configured phases independently. Unlike the baseline, phase timings are fully specified in the configuration rather than relying on SUMO's built-in plans. Simple and predictable, but cannot adapt to demand changes.
 
 **Demo Configuration:** `configurations/demo_sumo_fixed_cycle_config.json`  
 **Vienna Configuration:** `configurations/vienna_sumo_fixed_cycle_config.json`
@@ -59,10 +66,12 @@ src/
   evaluator.py                 Evaluation component for travel time analysis
 
 configurations/
-  demo_sumo_fixed_cycle_config.json       Demo: fixed-cycle controller
+  demo_sumo_baseline_config.json          Demo: no controller (SUMO default signal plans)
+  demo_sumo_fixed_cycle_config.json       Demo: configurable fixed-cycle controller
   demo_sumo_max_pressure_config.json      Demo: max-pressure controller
   demo_sumo_priority_pass_config.json     Demo: priority-pass controller (default)
-  vienna_sumo_fixed_cycle_config.json     Vienna: fixed-cycle controller
+  vienna_sumo_baseline_config.json        Vienna: no controller (SUMO default signal plans)
+  vienna_sumo_fixed_cycle_config.json     Vienna: configurable fixed-cycle controller
   vienna_sumo_max_pressure_config.json    Vienna: max-pressure controller
   vienna_sumo_priority_pass_config.json   Vienna: priority-pass controller
 
@@ -102,7 +111,7 @@ docs/
 The framework separates five core responsibilities:
 
 - **Environment**: The single pluggable execution backend per configuration, specified by `"type"` in the `"environment"` config section. Any environment that implements the `step` / `apply_and_advance` message contract can be connected; currently `"sumo"` (SUMO/TraCI microscopic traffic simulation) is supported, and the same interface covers future real-world pilot deployments. The environment exposes observable states (e.g. queue lengths, vehicle positions, signal states in the SUMO demonstrator) to Logic Modules via the Orchestrator.
-- **Logic Modules**: One or more pluggable modules that receive environment state and produce command outputs each step. In the demonstrator these are traffic signal controllers, but any module that produces a compatible command dict can be plugged in. All modules run each step; their command dicts are merged by the Orchestrator before being sent to the environment.
+- **Logic Modules**: Zero or more pluggable modules that receive environment state and produce command outputs each step. In the demonstrator these are traffic signal controllers, but any module that produces a compatible command dict can be plugged in. When `logic_modules` is empty (baseline mode), the Orchestrator immediately sends an empty `apply_and_advance` each step, leaving the environment's own default behaviour unchanged. All active modules run each step; their command dicts are merged by the Orchestrator before being sent to the environment.
 - **Orchestrator**: Sole orchestrator — creates all sub-components from the configuration, drives the step loop, and routes JSON-line messages between Environment, Logic Modules, and Recorder over TCP.
 - **Recorder**: Logs all inter-component communication for post-simulation analysis.
 - **Storage**: Persists records and logs to text files (additional backends planned).
@@ -255,7 +264,13 @@ Each control strategy has its own configuration file. The naming convention is `
 
 ### Demo Scenario Configs
 
-**Demo Fixed-Cycle Control:**
+**Demo Baseline (no controller — SUMO default signal plans):**
+
+```bash
+python run.py configurations/demo_sumo_baseline_config.json
+```
+
+**Demo Configurable Fixed-Cycle Control:**
 
 ```bash
 python run.py configurations/demo_sumo_fixed_cycle_config.json
@@ -281,7 +296,13 @@ python run.py
 
 ### Vienna Pilot Scenario Configs
 
-**Vienna Fixed-Cycle Control:**
+**Vienna Baseline (no controller — SUMO default signal plans):**
+
+```bash
+python run.py configurations/vienna_sumo_baseline_config.json
+```
+
+**Vienna Configurable Fixed-Cycle Control:**
 
 ```bash
 python run.py configurations/vienna_sumo_fixed_cycle_config.json

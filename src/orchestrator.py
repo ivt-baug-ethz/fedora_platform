@@ -171,7 +171,6 @@ class Orchestrator:
             self._transition("prepare")
         self._transition("start")
         assert self.recorder is not None
-        assert len(self.logic_modules) > 0
         assert self.environment is not None
 
         # start in order: recorder first so no messages are lost, then all logic modules, then environment
@@ -419,9 +418,15 @@ class Orchestrator:
             return
 
         if topic == "traffic_state" and sender == "environment":
-            # fan out to every logic module so all can compute their response
-            for name in self._logic_module_names:
-                self._forward(name, message)
+            if not self.logic_modules:
+                # baseline mode: no logic modules — advance immediately with empty commands
+                self._send_apply_and_advance({})
+                if self.environment_running:
+                    self._send_step_to_environment()
+            else:
+                # fan out to every logic module so all can compute their response
+                for name in self._logic_module_names:
+                    self._forward(name, message)
             return
 
         if topic == "logic_command" and sender == "logic_module":

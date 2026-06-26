@@ -19,10 +19,12 @@ fedora_platform/
 │   └── __pycache__/               – pytest cache (auto-generated)
 │
 ├── configurations/                – Scenario configuration files (named: {scenario}_sumo_{controller}_config.json)
-│   ├── demo_sumo_fixed_cycle_config.json     – Demo: fixed-cycle controller
+│   ├── demo_sumo_baseline_config.json        – Demo: no controller (SUMO default signal plans); logic_modules: []
+│   ├── demo_sumo_fixed_cycle_config.json     – Demo: configurable fixed-cycle controller
 │   ├── demo_sumo_max_pressure_config.json    – Demo: max-pressure controller
 │   ├── demo_sumo_priority_pass_config.json   – Demo: priority-pass controller (default)
-│   ├── vienna_sumo_fixed_cycle_config.json   – Vienna: fixed-cycle controller
+│   ├── vienna_sumo_baseline_config.json      – Vienna: no controller (SUMO default signal plans); logic_modules: []
+│   ├── vienna_sumo_fixed_cycle_config.json   – Vienna: configurable fixed-cycle controller
 │   ├── vienna_sumo_max_pressure_config.json  – Vienna: max-pressure controller
 │   └── vienna_sumo_priority_pass_config.json – Vienna: priority-pass controller
 │
@@ -132,9 +134,9 @@ fedora_platform/
 
 **controller_fixed_cycle.py**
 
-- Implements fixed-cycle traffic light control
-- Receives traffic state from Simulation, computes phase duration, sends commands back
-- Uses simple cycle timing (e.g., 60s cycle: 30s green north/south, 30s green east/west)
+- Implements the configurable fixed-cycle controller (distinct from the baseline which uses SUMO's built-in plans)
+- Receives traffic state, advances per-intersection cycle timers, sends phase commands back
+- Phase durations, transition (amber) duration, and per-intersection startup offsets are fully configurable
 - Implements FSM for controller state transitions
 
 **controller_max_pressure.py**

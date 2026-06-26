@@ -22,10 +22,16 @@
 - All receivers (`_handle_client`) parse messages line-by-line from persistent connections
 - `SumoEnvironment._run_loop` has a 30-second safety timeout on `step_event.wait()`
 
+**Baseline mode:**
+- `"logic_modules": []` is a valid configuration — Orchestrator short-circuits in `_route()`, immediately sends empty `apply_and_advance` + `step`, SUMO uses its own built-in signal plans
+- `configurations/demo_sumo_baseline_config.json` and `vienna_sumo_baseline_config.json` created (no `logic_module` port)
+- `run.py` defaults `logic_module_name` to `"baseline"` when list is empty; result dir: `results/{scenario}/baseline/`
+
 **Configuration and scenarios:**
 - Centralized configuration files in `configurations/` — `"enabled"` key removed from `lane_measurements` (auto-derived from controller)
+- Baseline configs omit `"logic_module"` from `communication.ports`; all controller configs use `"logic_module"` port key as before
 - Scenario-specific SUMO files organized in `scenarios/demo/sumo/` and `scenarios/pilot_*/`
-- `run.py` is a thin entry point (~70 lines): creates Orchestrator, calls start/wait_until_done, runs Evaluator
+- `run.py` is a thin entry point: creates Orchestrator, calls start/wait_until_done, runs Evaluator
 - SUMO executable resolution from PATH, `SUMO_HOME`, and platform-specific install locations
 
 **Testing:**

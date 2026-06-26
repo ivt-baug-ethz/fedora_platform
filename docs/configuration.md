@@ -1,15 +1,17 @@
 # Configuration
 
-All runtime settings are loaded from a JSON configuration file. The naming convention is `{scenario}_sumo_{logic_module}_config.json`.
+All runtime settings are loaded from a JSON configuration file. The naming convention is `{scenario}_sumo_{logic_module}_config.json` (or `{scenario}_sumo_baseline_config.json` for runs without a controller).
 
 ## Configuration Files
 
 | File | Scenario | Logic module |
 |---|---|---|
-| `demo_sumo_fixed_cycle_config.json` | Demo | Fixed-Cycle |
+| `demo_sumo_baseline_config.json` | Demo | None (SUMO default signal plans) |
+| `demo_sumo_fixed_cycle_config.json` | Demo | Configurable Fixed-Cycle |
 | `demo_sumo_max_pressure_config.json` | Demo | Max-Pressure |
 | `demo_sumo_priority_pass_config.json` | Demo | Urban Priority Pass |
-| `vienna_sumo_fixed_cycle_config.json` | Vienna pilot | Fixed-Cycle |
+| `vienna_sumo_baseline_config.json` | Vienna pilot | None (SUMO default signal plans) |
+| `vienna_sumo_fixed_cycle_config.json` | Vienna pilot | Configurable Fixed-Cycle |
 | `vienna_sumo_max_pressure_config.json` | Vienna pilot | Max-Pressure |
 | `vienna_sumo_priority_pass_config.json` | Vienna pilot | Urban Priority Pass |
 
@@ -59,13 +61,12 @@ All runtime settings are loaded from a JSON configuration file. The naming conve
 
 ### `logic_modules`
 
-An array of one or more logic module definitions. All modules run each step; their command outputs are merged by the Orchestrator.
+An ordered array of logic module definitions. All modules run each step; their command outputs are merged by the Orchestrator. Set to `[]` for **baseline mode**: the Orchestrator sends an empty `apply_and_advance` each step so SUMO's built-in signal plans run unmodified. Omit the `logic_module` port from `communication.ports` when the array is empty.
 
 | Field | Description |
 |---|---|
-| `type` | Module type: `"fixed_cycle"`, `"max_pressure"`, or `"priority_pass"` |
-| `host` / `port` | TCP address the module listens on |
-| `scenario_path` | Path to scenario directory containing phase and route JSON files |
+| `type` | Module type: `"controller_fixed_cycle"`, `"controller_max_pressure"`, or `"controller_priority_pass"` |
+| `host` / `port` | TCP address the module listens on (injected by Orchestrator; not set in config directly) |
 
 ### `orchestrator`
 

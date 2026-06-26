@@ -456,6 +456,45 @@ class TestPriorityPassLogic(unittest.TestCase):
         self.assertAlmostEqual(bids[1], 2.0)
 
 
+class TestOrchestratorBaselineMode(unittest.TestCase):
+    """Verify the Orchestrator handles zero logic modules (baseline mode)."""
+
+    def _make_bare_orchestrator(self):
+        """Return an Orchestrator stub with no logic modules configured."""
+        from orchestrator import Orchestrator
+
+        orchestrator = Orchestrator.__new__(Orchestrator)
+        orchestrator.host = "127.0.0.1"
+        orchestrator.port = 0
+        orchestrator.logic_modules = []
+        orchestrator._logic_module_names = []
+        return orchestrator
+
+    def test_configure_logic_modules_empty_list(self) -> None:
+        from orchestrator import Orchestrator
+
+        orchestrator = self._make_bare_orchestrator()
+        communication = {"ports": {}}
+        setup = {"random_seed": 42, "traffic_lights": []}
+        orchestrator._configure_logic_modules(communication, setup, [])
+        self.assertEqual(orchestrator.logic_modules, [])
+        self.assertEqual(orchestrator._logic_module_names, [])
+
+    def test_baseline_required_measurements_is_empty(self) -> None:
+        from orchestrator import Orchestrator
+
+        orchestrator = self._make_bare_orchestrator()
+        communication = {"ports": {}}
+        setup = {"random_seed": 42, "traffic_lights": []}
+        orchestrator._configure_logic_modules(communication, setup, [])
+        required: list[str] = []
+        for module in orchestrator.logic_modules:
+            for m in module.get_required_measurements():
+                if m not in required:
+                    required.append(m)
+        self.assertEqual(required, [])
+
+
 class TestOrchestratorControllerInstantiation(unittest.TestCase):
     """Verify the Orchestrator creates the correct controller class for each type string."""
 

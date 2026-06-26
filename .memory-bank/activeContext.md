@@ -1,6 +1,26 @@
 # Active Context
 
-## Current Status (2026-06-26) — Simulation Generalized to Environment
+## Current Status (2026-06-26) — Baseline Mode Added
+
+Added a baseline scenario type (no external controller) and clarified the fixed-cycle
+controller as "configurable fixed-cycle" in all documentation.
+
+**Baseline mode** (`"logic_modules": []`): the Orchestrator short-circuits the routing
+loop in `_route()` — on receiving `traffic_state`, it immediately sends `apply_and_advance({})`
+and the next `step` without waiting for any `logic_command`. The environment applies zero
+commands and SUMO runs its built-in signal plans.
+
+Changes:
+- `src/orchestrator.py`: removed `assert len(self.logic_modules) > 0`; added `not
+  self.logic_modules` fast-path in `traffic_state` routing
+- `run.py`: `logic_module_name` defaults to `"baseline"` when `logic_modules` is empty
+- `configurations/demo_sumo_baseline_config.json` — new (no `logic_module` port, `logic_modules: []`)
+- `configurations/vienna_sumo_baseline_config.json` — new
+- `src/controller_fixed_cycle.py`: docstring updated to "configurable fixed-cycle"
+- `tests/test_controllers.py`: 2 new baseline tests (71 total, all passing)
+- All docs updated: README, docs/, .agent-docs/
+
+## Previous Status (2026-06-26) — Simulation Generalized to Environment
 
 The "simulation" concept is now called "environment" everywhere. The config section `"simulation"`
 is renamed to `"environment"` with a `"type"` field (`"sumo_simulation"` is the only supported

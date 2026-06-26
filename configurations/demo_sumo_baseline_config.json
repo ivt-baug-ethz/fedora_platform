@@ -1,0 +1,76 @@
+{
+  "scenario": "demo",
+  "scenario_path": "scenarios/demo/sumo",
+  "communication": {
+    "host": "127.0.0.1",
+    "ports": {
+      "orchestrator": 51000,
+      "environment": 51001,
+      "recorder": 51003
+    },
+    "socket_timeout": 2.0
+  },
+  "setup": {
+    "measurements": {
+      "sumo": {
+        "lane_measurements": {
+          "pressure_lanes": "phase_inc_lanes.json"
+        },
+        "measurement_details": {
+          "sensor_distance": 100.0
+        },
+        "road_measurements": {},
+        "sensor_measurements": {},
+        "vehicle_measurements": {}
+      }
+    },
+    "startup_pause_seconds": 0.2,
+    "random_seed": 42,
+    "traffic_lights": [
+      "J25",
+      "J26",
+      "J27",
+      "J28",
+      "J29",
+      "J30",
+      "J31",
+      "J32",
+      "J33"
+    ],
+    "controller_response_timeout_seconds": 0.05
+  },
+  "environment": {
+    "type": "sumo",
+    "demand": {
+      "traci_spawning_active": true,
+      "route_probabilities_file": "route_probabilities.json",
+      "flow_per_entrance_per_hour": 50.0,
+      "spawn_horizon": 30000,
+      "max_steps": 5000,
+      "step_delay_seconds": 0.0,
+      "vot_spawn_probabilities": {
+        "0": 1.0
+      }
+    },
+    "visualization": {
+      "vehicle_colors": {
+        "regular": [
+          110,
+          110,
+          110,
+          255
+        ]
+      }
+    },
+    "settings": {
+      "binary": "sumo-gui",
+      "config_file": "config.sumocfg",
+      "label": "demo_baseline"
+    }
+  },
+  "recorder": {
+    "logs_dir": "logs/demo_baseline",
+    "log_type": "txt"
+  },
+  "logic_modules": []
+}

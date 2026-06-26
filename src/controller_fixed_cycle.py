@@ -1,4 +1,4 @@
-"""Fixed-cycle traffic light controller FSM."""
+"""Configurable fixed-cycle traffic light controller FSM."""
 
 from __future__ import annotations
 
@@ -10,9 +10,12 @@ from typing import Any
 
 
 class FixedCycleController:
-    """Cycle traffic lights through configured green and transition phases on a fixed schedule.
+    """Configurable fixed-cycle controller: cycles traffic lights through user-defined phase durations.
 
-    Each traffic light runs its own independent cycle with an optional startup time offset.
+    Each intersection runs an independent schedule with configurable green-phase durations,
+    transition (amber) duration, and an optional per-intersection startup time offset. Unlike
+    the baseline (no controller), phase durations and offsets are explicit in the configuration
+    rather than relying on SUMO's built-in signal plans.
     """
 
     NAME = "logic_module"

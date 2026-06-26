@@ -1,5 +1,57 @@
 # Architectural Decisions
 
+## ADR 2026-06-26: Baseline Mode — Zero Logic Modules
+
+### Status
+
+Accepted.
+
+### Context
+
+All existing configurations required at least one logic module. There was no way to run the
+simulation with SUMO's own built-in signal plans as a performance baseline without adding a
+dummy controller. Comparative studies need a reference run that applies no external control.
+
+Additionally, the "fixed-cycle controller" label was ambiguous — it could be confused with
+SUMO's own internal fixed-plan timing, while in practice it is a fully *configurable* Python
+controller that overrides SUMO's plans with user-supplied phase durations and offsets.
+
+### Decision
+
+**Baseline mode:** `"logic_modules": []` (an empty array) is now a valid configuration. The
+Orchestrator detects zero modules in `_route()` and, upon receiving `traffic_state`, immediately
+sends an empty `apply_and_advance` (no commands) followed by the next `step`, without waiting for
+any `logic_command`. The environment applies zero commands and calls `simulationStep()`, leaving
+all traffic lights under SUMO's built-in signal plans for that step.
+
+Structural changes:
+- `orchestrator.py`: removed `assert len(self.logic_modules) > 0` from `start()`; added a
+  `not self.logic_modules` fast-path in `_route()` for the `traffic_state` topic.
+- `run.py`: `logic_module_name` defaults to `"baseline"` when `logic_modules` is empty; result
+  directory becomes `results/{scenario}/baseline/`.
+- Baseline configs omit the `"logic_module"` port from `communication.ports` (no TCP listener
+  is needed for a module that does not exist).
+
+**Naming:** `controller_fixed_cycle` and its class `FixedCycleController` are now described as
+the "configurable fixed-cycle controller" in all documentation and docstrings to make clear that
+its phase timings come from the configuration file, not from SUMO.
+
+**New configuration files:**
+- `configurations/demo_sumo_baseline_config.json`
+- `configurations/vienna_sumo_baseline_config.json`
+
+### Consequences
+
+- Baseline runs produce logs in `logs/{scenario}_baseline/` and results in
+  `results/{scenario}/baseline/` — comparable with controller runs via the Evaluator.
+- Single-module and multi-module configs are completely unchanged.
+- Adding a baseline config requires only omitting the `logic_module` port and setting
+  `"logic_modules": []`; no Python changes.
+- The Evaluator can compare baseline vs. controller results directly from their respective
+  result directories.
+
+---
+
 ## ADR 2026-06-26: Generalize Simulation to Environment
 
 ### Status

@@ -7,9 +7,11 @@ Evaluator.
 
 Examples:
     python run.py
+    python run.py configurations/demo_sumo_baseline_config.json
     python run.py configurations/demo_sumo_fixed_cycle_config.json
     python run.py configurations/demo_sumo_max_pressure_config.json
     python run.py configurations/demo_sumo_priority_pass_config.json
+    python run.py configurations/vienna_sumo_baseline_config.json
     python run.py configurations/vienna_sumo_fixed_cycle_config.json
     python run.py configurations/vienna_sumo_max_pressure_config.json
     python run.py configurations/vienna_sumo_priority_pass_config.json
@@ -42,11 +44,21 @@ def main() -> None:
                 "  --skip-evaluation: Skip evaluation and visualization after simulation"
             )
             print("\nAvailable demo configs:")
-            print("  - configurations/demo_sumo_fixed_cycle_config.json")
+            print(
+                "  - configurations/demo_sumo_baseline_config.json (no controller — SUMO defaults)"
+            )
+            print(
+                "  - configurations/demo_sumo_fixed_cycle_config.json (configurable fixed-cycle)"
+            )
             print("  - configurations/demo_sumo_max_pressure_config.json")
             print("  - configurations/demo_sumo_priority_pass_config.json")
             print("\nAvailable Vienna pilot configs:")
-            print("  - configurations/vienna_sumo_fixed_cycle_config.json")
+            print(
+                "  - configurations/vienna_sumo_baseline_config.json (no controller — SUMO defaults)"
+            )
+            print(
+                "  - configurations/vienna_sumo_fixed_cycle_config.json (configurable fixed-cycle)"
+            )
             print("  - configurations/vienna_sumo_max_pressure_config.json")
             print("  - configurations/vienna_sumo_priority_pass_config.json")
             sys.exit(0)
@@ -61,9 +73,10 @@ def main() -> None:
 
     # extract names used for result directory paths and priority-plot visibility
     scenario = str(config["scenario"])
-    logic_module_name = str(config["logic_modules"][0]["type"])
+    logic_modules = list(config.get("logic_modules", []))
+    logic_module_name = str(logic_modules[0]["type"]) if logic_modules else "baseline"
     show_priority = any(
-        m.get("type") == "controller_priority_pass" for m in config["logic_modules"]
+        m.get("type") == "controller_priority_pass" for m in logic_modules
     )
 
     orchestrator = Orchestrator(config)
