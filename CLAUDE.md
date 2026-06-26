@@ -11,8 +11,8 @@ responsible for following the rules and updating the documentation.
 
 - `AGENTS.md` — Complete agent instructions (mandatory for all work)
 - `memory-bank/` — Persistent context about the project state and decisions
-- `docs/STRUCTURE.md` — Current directory structure and module responsibilities
-- `docs/DECISIONS.md` — Architectural Decision Records (ADRs)
+- `.agent-docs/STRUCTURE.md` — Current directory structure and module responsibilities
+- `.agent-docs/DECISIONS.md` — Architectural Decision Records (ADRs)
 
 ## Essential Rules
 
@@ -26,9 +26,10 @@ responsible for following the rules and updating the documentation.
 
 2. **Update documentation on every task:**
    - `README.md` — If code behavior, entry points, or scenario configs change (keep in sync!)
-   - `docs/STRUCTURE.md` — After adding/moving/removing files or folders
-   - `docs/DECISIONS.md` — After any non-trivial architectural choice
-   - `docs/scratchpad.md` — Session progress and learnings (mandatory)
+   - `.agent-docs/STRUCTURE.md` — After adding/moving/removing files or folders
+   - `.agent-docs/DECISIONS.md` — After any non-trivial architectural choice
+   - `.agent-docs/scratchpad.md` — Session progress and learnings (mandatory)
+   - `docs/` — User-facing MkDocs pages (deployed to GitHub Pages); update when components, setup, interfaces, or architecture change
 
 3. **Update memory-bank at session end:**
    - `memory-bank/activeContext.md` — Current focus and recent changes
@@ -67,11 +68,12 @@ fedora_platform/
 │   ├── pilot_vienna/       – Vienna pilot scenario
 │   └── pilot_*/            – Other pilot scenarios
 ├── logs/                   – Generated output logs
-├── docs/                   – LLM-maintained documentation
+├── .agent-docs/            – LLM-maintained documentation
 │   ├── STRUCTURE.md        – Directory tree and responsibilities
 │   ├── DECISIONS.md        – Architectural Decision Records
 │   ├── INTEGRATIONS.md     – External tools and integrations
 │   └── scratchpad.md       – Per-session working memory
+├── docs/                   – User-facing MkDocs documentation (GitHub Pages)
 ├── memory-bank/            – Persistent project context
 ├── requirements.txt        – Pinned dependencies
 ├── AGENTS.md               – Complete agent instructions
@@ -84,7 +86,7 @@ fedora_platform/
 
 1. Create/modify files as needed
 2. Add type annotations and docstrings
-3. Update `docs/STRUCTURE.md` if adding new files/directories
+3. Update `.agent-docs/STRUCTURE.md` if adding new files/directories
 4. Run `pytest tests/ -v` to verify
 
 ### Fix a Bug
@@ -92,16 +94,16 @@ fedora_platform/
 1. Write a test that reproduces the bug
 2. Fix the bug
 3. Verify all tests pass
-4. Update `docs/DECISIONS.md` if the fix involved non-obvious reasoning
-5. Update `docs/scratchpad.md` with what you learned
+4. Update `.agent-docs/DECISIONS.md` if the fix involved non-obvious reasoning
+5. Update `.agent-docs/scratchpad.md` with what you learned
 
 ### Refactor Code
 
 1. Plan the refactor (use AGENTS.md for architectural guidance)
 2. Preserve all existing behavior
-3. Update `docs/STRUCTURE.md` if module responsibilities change
+3. Update `.agent-docs/STRUCTURE.md` if module responsibilities change
 4. Run full test suite
-5. Update `docs/DECISIONS.md` with the rationale
+5. Update `.agent-docs/DECISIONS.md` with the rationale
 
 ## Key Technologies
 
@@ -130,7 +132,7 @@ For project-specific questions, refer to AGENTS.md or check the memory-bank cont
 - **Docstrings** — Required for all public functions, classes, and modules
 - **Code quality** — Run `pylint src/` before committing, all warnings must be fixed
 - **Testing** — Write tests for every non-trivial function; run `pytest src/tests/ -v` before committing
-- **Documentation** — Keep STRUCTURE.md, DECISIONS.md, and scratchpad.md up to date at task end
+- **Documentation** — Keep `.agent-docs/STRUCTURE.md`, `.agent-docs/DECISIONS.md`, `.agent-docs/scratchpad.md`, and the `docs/` MkDocs pages up to date at task end
 - **No absolute paths** — Always use `pathlib.Path` and relative paths
 - **Security** — Sanitize all external inputs before passing to algorithms
 
@@ -146,7 +148,7 @@ All files in `memory-bank/` MUST be read at the start of every session and updat
 
 ### From AGENTS.md: Scratchpad Format
 
-When updating `docs/scratchpad.md`, document each session with:
+When updating `.agent-docs/scratchpad.md`, document each session with:
 
 ```markdown
 ## Task: <description>

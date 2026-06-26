@@ -1,7 +1,7 @@
-# Pilot 1 - Vienna Model Assets
+# Vienna Pilot — Model Assets
 
-The Vienna pilot folder contains model assets for the current Priority
-Pass/SUMO prototype. Runtime Python code lives in `src/fedora_platform/`.
+This folder contains SUMO network and demand assets for the Vienna Priority Pass pilot.
+Runtime Python code lives in `src/controller_priority_pass.py`.
 
 ```text
 pilot_vienna/
@@ -12,6 +12,3 @@ pilot_vienna/
     phase_inc_lanes.json
     Route_*.json
 ```
-
-`src/fedora_platform/priority_pass.py` resolves this folder by default through
-`PriorityPassConfig.model_root`.
