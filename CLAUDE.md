@@ -10,7 +10,7 @@ responsible for following the rules and updating the documentation.
 **Read these first:**
 
 - `AGENTS.md` — Complete agent instructions (mandatory for all work)
-- `memory-bank/` — Persistent context about the project state and decisions
+- `.memory-bank/` — Persistent context about the project state and decisions
 - `.agent-docs/STRUCTURE.md` — Current directory structure and module responsibilities
 - `.agent-docs/DECISIONS.md` — Architectural Decision Records (ADRs)
 
@@ -31,10 +31,10 @@ responsible for following the rules and updating the documentation.
    - `.agent-docs/scratchpad.md` — Session progress and learnings (mandatory)
    - `docs/` — User-facing MkDocs pages (deployed to GitHub Pages); update when components, setup, interfaces, or architecture change
 
-3. **Update memory-bank at session end:**
-   - `memory-bank/activeContext.md` — Current focus and recent changes
-   - `memory-bank/progress.md` — What works, what's broken
-   - `memory-bank/systemPatterns.md` — When architecture changes
+3. **Update .memory-bank at session end:**
+   - `.memory-bank/activeContext.md` — Current focus and recent changes
+   - `.memory-bank/progress.md` — What works, what's broken
+   - `.memory-bank/systemPatterns.md` — When architecture changes
 
 4. **Run tests before committing:**
 
@@ -74,7 +74,7 @@ fedora_platform/
 │   ├── INTEGRATIONS.md     – External tools and integrations
 │   └── scratchpad.md       – Per-session working memory
 ├── docs/                   – User-facing MkDocs documentation (GitHub Pages)
-├── memory-bank/            – Persistent project context
+├── .memory-bank/           – Persistent project context
 ├── requirements.txt        – Pinned dependencies
 ├── AGENTS.md               – Complete agent instructions
 └── CLAUDE.md               – This file
@@ -119,7 +119,7 @@ fedora_platform/
 For issues with Claude Code itself, see `/help` or report at:
 https://github.com/anthropics/claude-code/issues
 
-For project-specific questions, refer to AGENTS.md or check the memory-bank context.
+For project-specific questions, refer to AGENTS.md or check the .memory-bank context.
 
 ---
 
@@ -138,7 +138,7 @@ For project-specific questions, refer to AGENTS.md or check the memory-bank cont
 
 ### From AGENTS.md: Memory Bank Files
 
-All files in `memory-bank/` MUST be read at the start of every session and updated at the end:
+All files in `.memory-bank/` MUST be read at the start of every session and updated at the end:
 
 - `projectbrief.md` — Read-only (project scope and goals)
 - `systemPatterns.md` — Update when architecture changes

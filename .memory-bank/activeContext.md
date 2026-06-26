@@ -127,7 +127,7 @@ All `src/` files were comprehensively cleaned up:
 - All controllers and simulation: `self.connector` → `self.orchestrator`, `_connector_connection` → `_orchestrator_connection`, `_connector_lock` → `_orchestrator_lock`, config key `"connector"` → `"orchestrator"`
 - `run.py` updated: imports from `orchestrator`, uses variable `orchestrator`
 - All docs (README, STRUCTURE.md, DECISIONS.md, INTEGRATIONS.md, CLAUDE.md) updated
-- memory-bank and auto-memory updated
+- .memory-bank and auto-memory updated
 
 ## Test Coverage Extension (2026-06-25)
 

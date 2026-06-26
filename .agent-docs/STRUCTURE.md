@@ -78,7 +78,7 @@ fedora_platform/
 │
 ├── mkdocs.yml                     – MkDocs + Material configuration
 │
-├── memory-bank/                   – Persistent project context (read/update every session)
+├── .memory-bank/                  – Persistent project context (read/update every session)
 │   ├── projectbrief.md            – Project scope and goals (read-only)
 │   ├── systemPatterns.md          – Architecture and design patterns
 │   ├── techContext.md             – Technical environment and dependencies

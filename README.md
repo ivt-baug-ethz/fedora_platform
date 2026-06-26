@@ -91,7 +91,7 @@ docs/
   components.md                Component reference
   configuration.md             Configuration reference
 
-memory-bank/
+.memory-bank/
   Persistent project context (see CLAUDE.md for guidelines)
 ```
 
