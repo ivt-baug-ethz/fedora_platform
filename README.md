@@ -2,22 +2,26 @@
   <img src="figures/fedora_banner.svg" alt="FEDORA platform banner" width="100%">
 </p>
 
-# Traffic Control Platform
+# FEDORA — Traffic Management Orchestration Framework
 
-A proof-of-concept modular traffic control platform demonstrating how optimization and control modules can be composed with traffic simulators, communication systems, and data storage backends. This repository is designed as an example for signal timing optimization strategies and modular component architecture.
+A modular orchestration framework for integrating traffic logic modules (such as traffic signal controllers, demand models, etc.) with compatible simulation environments or real-world deployment sites. The framework decouples decision logic from environment execution through a JSON-line message-passing architecture over TCP: an Orchestrator routes state observations from the environment to all connected logic modules and feeds their merged decisions back to the environment each step.
+
+**This repository demonstrates the framework** at the example of traffic signal control. Three signal controllers — Fixed-Cycle, Max-Pressure, and the custom-developed Urban Priority Pass (UPP) — are connected to SUMO (Simulation of Urban MObility) as the executing environment. The architecture is not specific to traffic signal control: any logic module that produces a compatible command in response to an environment state observation can be plugged in, and any environment that implements the `step` / `apply_and_advance` message contract can serve as the execution backend.
 
 ## Overview
 
-The platform provides:
+The framework provides:
 
-- **Three control strategies** for traffic signal timing: fixed-cycle, max-pressure, and priority-pass auction control
-- **Modular component architecture** where optimization modules, simulators, communication systems, and storage are decoupled
+- **Pluggable environment slot** — any environment implementing the `step` / `apply_and_advance` message contract can be connected (event- and time-based simulations / real-world deployment sides); currently `"sumo"` (SUMO/TraCI) is supported, with the same interface covering future real-world pilot deployments
+- **Pluggable logic module stack** — one or more logic modules receive environment state and produce commands each step; outputs are merged before application, enabling module composition without code changes
 - **Finite-state machine lifecycle** for all components, making composition explicit and testable
-- **SUMO integration** for microscopic traffic simulation using the TraCI API
-- **TCP-based inter-component communication** with JSON-line message format
-- **Persistent logging** of all control decisions and simulation results
+- **Orchestrator-driven control loop** — sole orchestrator that creates all sub-components from configuration, communicates the requested environment state, accumulates module responses, and drives each step
+- **TCP-based inter-component communication** with JSON-line message format over localhost
+- **Persistent logging** of all inter-component messages for post-run analysis and evaluation
 
-## Control Strategies
+## Demonstrator: Traffic Signal Controllers
+
+The following three logic modules implement traffic signal control strategies as demonstrators of the framework. Each module shares the same message interface — receiving `traffic_state` observations from the SUMO environment and returning `logic_command` decisions to the Orchestrator — and can be swapped or combined without changes to any other component.
 
 ### 1. Fixed-Cycle Controller
 
@@ -28,14 +32,14 @@ Pre-timed signal schedules with offset coordination across intersections. Each i
 
 ### 2. Max-Pressure Controller
 
-Real-time responsive control based on queue pressures (difference in queue lengths at opposite approaches). Uses an auction mechanism to assign the next green phase to the direction with highest pressure. Adapts immediately to traffic demand but may be unstable under high congestion.
+Real-time responsive control based on queue pressures (difference in queue lengths at opposite approaches). Uses an auction mechanism to assign the next green phase to the direction with the highest pressure. Adapts immediately to traffic demand but may be unstable under high congestion.
 
 **Demo Configuration:** `configurations/demo_sumo_max_pressure_config.json`  
 **Vienna Configuration:** `configurations/vienna_sumo_max_pressure_config.json`
 
-### 3. Priority-Pass Controller
+### 3. Urban Priority Pass (UPP) Controller
 
-Extension of max-pressure that includes priority for specific vehicles in the auction mechanism. Balances traffic efficiency with transit reliability through a configurable trade-off parameter.
+Custom-developed extension of Max-Pressure that incorporates priority bidding for designated vehicles (e.g. public transit, high-priority vehicles, ...) in the auction mechanism. Balances network-wide traffic efficiency with transit reliability through a configurable trade-off parameter.
 
 **Demo Configuration:** `configurations/demo_sumo_priority_pass_config.json`  
 **Vienna Configuration:** `configurations/vienna_sumo_priority_pass_config.json`
@@ -86,13 +90,13 @@ memory-bank/
 
 ### Component Model
 
-The platform separates five core responsibilities:
+The framework separates five core responsibilities:
 
-- **Environment**: A single pluggable environment component per configuration, specified by `"type"` in the `"environment"` config section. Currently `"sumo_simulation"` (SUMO/TraCI) is supported; future types can target real-world pilot deployments. Exposes state (queue lengths, vehicle positions) to Logic Modules via the Orchestrator
-- **Logic Modules**: One or more pluggable modules receive the environment state and generate control outputs (e.g. traffic signal timing decisions in the current SUMO scenario). All modules run each step; their command dicts are merged before being applied
-- **Orchestrator**: Sole orchestrator — creates all sub-components, drives the step loop, and routes JSON-line messages between Environment, Logic Modules, and Recorder over TCP
-- **Recorder**: Logs all inter-component communication for post-simulation analysis
-- **Storage**: Persists records and logs to text files (additional backends planned)
+- **Environment**: The single pluggable execution backend per configuration, specified by `"type"` in the `"environment"` config section. Any environment that implements the `step` / `apply_and_advance` message contract can be connected; currently `"sumo"` (SUMO/TraCI microscopic traffic simulation) is supported, and the same interface covers future real-world pilot deployments. The environment exposes observable states (e.g. queue lengths, vehicle positions, signal states in the SUMO demonstrator) to Logic Modules via the Orchestrator.
+- **Logic Modules**: One or more pluggable modules that receive environment state and produce command outputs each step. In the demonstrator these are traffic signal controllers, but any module that produces a compatible command dict can be plugged in. All modules run each step; their command dicts are merged by the Orchestrator before being sent to the environment.
+- **Orchestrator**: Sole orchestrator — creates all sub-components from the configuration, drives the step loop, and routes JSON-line messages between Environment, Logic Modules, and Recorder over TCP.
+- **Recorder**: Logs all inter-component communication for post-simulation analysis.
+- **Storage**: Persists records and logs to text files (additional backends planned).
 
 ### Finite State Machine Lifecycle
 
@@ -122,7 +126,7 @@ stateDiagram-v2
 
 ### Control Loop
 
-The components operate in a closed loop. The Orchestrator actively orchestrates each iteration:
+The components operate in a closed loop driven by the Orchestrator:
 
 ```
 1. Orchestrator sends "step" to Environment
@@ -175,7 +179,7 @@ graph TB
 
     subgraph startup["Startup Phase"]
         direction LR
-        Start -->|Initialize| Con["Orchestrator<br/>(Orchestrator)"]
+        Start -->|Initialize| Con["Orchestrator"]
         Con -->|Initialize| Rec["Recorder"]
         Con -->|Initialize| LMs["Logic Module(s)"]
         Con -->|Initialize| Sim["Environment"]
@@ -234,7 +238,7 @@ The steady-state loop repeats at the environment's step rate (e.g. ~0.1s per cyc
 5. **6.6** — Orchestrator mirrors all messages to Recorder for logging and analysis
 6. **Loop back** to 6.1 if incomplete, or **Shutdown and evaluate** when done
 
-This closed-loop architecture enables adaptive decision-making over a simulation environment. A single logic module runs per step by default; multiple modules can be stacked by listing them in the `"logic_modules"` array in the configuration. Each module's computation is independent — the merged command dict is sent as a single `apply_and_advance` after all modules respond.
+This closed-loop architecture enables any logic module to make adaptive decisions against any compatible environment. A single logic module runs per step by default; multiple modules can be stacked by listing them in the `"logic_modules"` array in the configuration. Each module's computation is independent — the Orchestrator merges all command dicts and issues a single `apply_and_advance` once every module has responded.
 
 ## Running Scenarios
 
@@ -301,6 +305,7 @@ python run.py --help
 - **Evaluation results:** `results/{scenario}/{logic_module}/` — Generated automatically after each run
   - `travel_time_distribution.png` — Histogram of regular and priority vehicle travel times
   - `average_travel_time.png` — Cumulative average travel time over simulation time
+  - `vehicle_counts.png` — Total vehicle count over simulation time
   - `evaluation_stats.json` — Summary statistics (mean, median, min/max travel times)
   - Example: `results/demo/fixed_cycle/`, `results/vienna/priority_pass/`
 - **SUMO GUI:** Visual representation of vehicles and signal states (when `sumo-gui` is available)
