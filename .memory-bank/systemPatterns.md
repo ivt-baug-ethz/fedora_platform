@@ -59,6 +59,11 @@ The main application is built from modular FSM-based components in `src/`, orche
 - **`src/controller_priority_pass.py`** — Priority Pass controller FSM; `get_required_measurements()` returns queue measurement + `"upp_bids"`
 - **`src/recorder.py`** — Listens on TCP, logs routed communication to files in `logs/`
 
+Priority Pass is a strict extension of Max-Pressure for controlled experiments: with
+`trade_off = 0.0`, UPP bids are ignored and the Priority Pass auction FSM must produce the
+same phase commands as Max-Pressure for the same measurements and random seed. Config files
+therefore keep the auction timing parameters aligned between these two controllers.
+
 ### Environment Step Loop (Orchestrator-Driven)
 
 ```

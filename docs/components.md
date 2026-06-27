@@ -51,6 +51,8 @@ Real-time responsive control based on queue pressure (difference in queue length
 
 Extends Max-Pressure with a priority bidding mechanism for designated vehicles (e.g. public transit). Balances network-wide efficiency with transit reliability via a configurable trade-off parameter.
 
+Priority Pass intentionally shares the same auction FSM timing parameters as Max-Pressure. At `trade_off = 0.0`, the combined bid is exactly the queue-length bid, so the controller should produce the same phase sequence as Max-Pressure for the same measurements and random seed. Values above zero gradually add UPP bids to the auction and are the intended prioritisation experiment.
+
 ## Recorder (`src/recorder.py`)
 
 Listens on a dedicated TCP port for message copies from the Orchestrator. Writes all inter-component communication to log files for post-run analysis.

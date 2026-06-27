@@ -323,3 +323,25 @@ ordered array of objects). The Orchestrator is updated to:
 - With a single module the behaviour is identical to before: the first and only `"logic_command"` response immediately triggers `"apply_and_advance"`.
 - Conflicting command assignments from multiple modules are merged with last-write-wins order;
   callers are responsible for assigning disjoint target sets if determinism is required.
+
+---
+
+## ADR 2026-06-27: Priority Pass Baseline Must Match Max-Pressure at `trade_off = 0`
+
+### Status
+
+Accepted.
+
+### Context
+
+Priority Pass is intended to be a controlled extension of Max-Pressure: the auction FSM should remain the same, and the `trade_off` parameter should be the experiment knob that blends queue-length bids with UPP priority bids. The shipped Priority Pass configs had longer `min_green_duration` and `auction_suspend_duration` values than the matching Max-Pressure configs, causing different phase timing even when priority bids were disabled.
+
+### Decision
+
+The demo and Vienna Priority Pass configs now keep the same auction timing fields as their Max-Pressure counterparts: `transition_duration`, `bidding_strategy`, `auction_winner`, `min_green_duration`, `max_green_duration`, and `auction_suspend_duration`. A regression test asserts that `PriorityPassController` produces the same phase sequence and light FSM state as `MaxPressureController` when `trade_off = 0.0`, even if UPP bids are present in the measurements.
+
+### Consequences
+
+- Setting `trade_off = 0.0` should reproduce Max-Pressure behaviour for the same SUMO random seed.
+- Increasing `trade_off` isolates the effect of UPP prioritisation instead of mixing it with changed auction timings.
+- Future config changes must preserve timing parity unless intentionally creating a separate experiment variant.

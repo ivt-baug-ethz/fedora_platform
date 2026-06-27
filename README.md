@@ -50,6 +50,8 @@ Real-time responsive control based on queue pressures (difference in queue lengt
 
 Custom-developed extension of Max-Pressure that incorporates priority bidding for designated vehicles (e.g. public transit, high-priority vehicles, ...) in the auction mechanism. Balances network-wide traffic efficiency with transit reliability through a configurable trade-off parameter.
 
+For controlled comparisons, Priority Pass uses the same auction FSM timing parameters as Max-Pressure. With `trade_off = 0.0`, UPP bids are ignored and the phase sequence should match Max-Pressure exactly for the same SUMO random seed; increasing `trade_off` is the experiment knob that gradually shifts green time toward priority vehicles.
+
 **Demo Configuration:** `configurations/demo_sumo_priority_pass_config.json`  
 **Vienna Configuration:** `configurations/vienna_sumo_priority_pass_config.json`
 
@@ -319,6 +321,10 @@ python run.py configurations/vienna_sumo_max_pressure_config.json
 ```bash
 python run.py configurations/vienna_sumo_priority_pass_config.json
 ```
+
+### Comparing Max-Pressure and Priority-Pass
+
+To verify the Priority Pass baseline, set `logic_modules[0].priority_pass.trade_off` to `0.0` in the Priority Pass config and run it with the same `setup.random_seed` as the corresponding Max-Pressure config. The average travel time over all individuals should match because both controllers then use the same queue-length bids and the same auction timing. Priority vehicle labels may still be generated for evaluation, but their UPP bids do not affect signal control until `trade_off` is greater than zero.
 
 ### Help and Available Scenarios
 

@@ -1,5 +1,24 @@
 # Active Context
 
+## Current Status (2026-06-27) - Priority Pass / Max-Pressure Parity
+
+Fixed the main cause of Priority Pass behaving differently from Max-Pressure when priority
+is disabled. The controller bid formula was already correct: at `trade_off = 0.0`,
+`PriorityPassController` uses only queue-length bids. The divergence came from the shipped
+Priority Pass configs using different auction FSM timings than Max-Pressure.
+
+Changes:
+- `configurations/demo_sumo_priority_pass_config.json`: aligned `min_green_duration` to `3`
+  and `auction_suspend_duration` to `4`, matching demo Max-Pressure.
+- `configurations/vienna_sumo_priority_pass_config.json`: aligned the same timing fields
+  with Vienna Max-Pressure.
+- `tests/test_controllers.py`: added parity tests proving Priority Pass at `trade_off = 0.0`
+  matches Max-Pressure phase commands and light FSM state, plus config timing parity tests.
+- README and MkDocs docs now describe the `trade_off = 0.0` baseline equivalence invariant.
+- Tests: `.\venv\Scripts\python.exe -m pytest tests\ -v` -> 73 passed.
+- Lint: `pylint src` still exits nonzero on pre-existing design/duplication/TODO warnings;
+  no new source lint issues were introduced by this config/test change.
+
 ## Current Status (2026-06-26) — Baseline Mode Added
 
 Added a baseline scenario type (no external controller) and clarified the fixed-cycle

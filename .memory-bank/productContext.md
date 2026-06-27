@@ -10,6 +10,8 @@ The Urban Priority Pass (UPP) is the custom-developed traffic-light control algo
 - Uses an auction to dynamically allocate green time to traffic phases
 - Implements a configurable trade-off parameter (tau) between transit priority and network efficiency
 - Manages traffic-light phases with minimum green time enforcement
+- Must match Max-Pressure exactly at `trade_off = 0.0` for the same measurements/random seed;
+  higher values of `trade_off` isolate the effect of UPP priority bids
 
 ## Platform Structure
 

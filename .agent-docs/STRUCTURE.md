@@ -14,9 +14,9 @@ fedora_platform/
 ├── run.py                         – Thin entry point: parses CLI args, starts Orchestrator, runs Evaluator
 │
 ├── tests/                         – Unit and integration tests
-│   ├── test_core.py               – Core component lifecycle and message bus tests
-│   ├── test_priority_pass.py      – Priority Pass and SUMO adapter tests
-│   └── __pycache__/               – pytest cache (auto-generated)
+│   ├── test_controllers.py        – Controller FSMs, auctions, config parity tests
+│   ├── test_evaluator.py          – Evaluation and travel-time analysis tests
+│   └── test_recorder.py           – Recorder FSM and TCP logging tests
 │
 ├── configurations/                – Scenario configuration files (named: {scenario}_sumo_{controller}_config.json)
 │   ├── demo_sumo_baseline_config.json        – Demo: no controller (SUMO default signal plans); logic_modules: []
@@ -115,7 +115,7 @@ fedora_platform/
 
 **environment_sumo.py**
 
-- Implements the `sumo_simulation` environment type: manages SUMO/TraCI connection lifecycle
+- Implements the `sumo` environment type: manages SUMO/TraCI connection lifecycle
 - Passive step loop: waits for `"step"` message from Orchestrator before each iteration; does not drive itself
 - Spawns vehicles, reads traffic state, and applies traffic light commands via `"apply_and_advance"` messages
 - Accepts `lane_measurements_enabled` list from Orchestrator (populated from logic module requirements) — no measurement config needed in JSON
@@ -130,7 +130,7 @@ fedora_platform/
 - Sends `"step"` and `"apply_and_advance"` commands to Environment to control each iteration
 - Queries each logic module's `get_required_measurements()` to determine which metrics the Environment should collect; no user configuration of measurement types needed
 - Mirrors all traffic for logging to Recorder component
-- Supports pluggable environment types via `_ENVIRONMENT_TYPES` dict (currently: `"sumo_simulation"`)
+- Supports pluggable environment types via `_ENVIRONMENT_TYPES` dict (currently: `"sumo"`)
 
 **controller_fixed_cycle.py**
 
@@ -151,6 +151,7 @@ fedora_platform/
 - Implements Vienna Priority Pass optimization algorithm
 - Receives traffic state and priority vehicle information
 - Optimizes phase sequence considering both traffic efficiency and transit priority
+- Shares Max-Pressure auction timing; with `trade_off = 0.0`, UPP bids are ignored and the phase sequence should match Max-Pressure for the same measurements and random seed
 - Implements FSM for controller state transitions
 
 **recorder.py**

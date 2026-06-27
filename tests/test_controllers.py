@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import sys
 import unittest
 from pathlib import Path
@@ -454,6 +455,85 @@ class TestPriorityPassLogic(unittest.TestCase):
         bids = ctrl._get_priority_pass_bids(metrics)
         self.assertAlmostEqual(bids[0], 6.0)
         self.assertAlmostEqual(bids[1], 2.0)
+
+
+class TestPriorityPassMaxPressureEquivalence(unittest.TestCase):
+    """Regression tests for Priority Pass behaving like Max-Pressure at tau=0."""
+
+    def test_tau_zero_matches_max_pressure_phase_sequence(self) -> None:
+        max_cfg = _max_pressure_cfg()
+        priority_cfg = _priority_pass_cfg()
+        priority_cfg["priority_pass"].update(
+            {
+                key: value
+                for key, value in max_cfg["max_pressure"].items()
+                if key != "auction_winner"
+            }
+        )
+        priority_cfg["priority_pass"]["auction_winner"] = max_cfg["max_pressure"][
+            "auction_winner"
+        ]
+        priority_cfg["priority_pass"]["trade_off"] = 0.0
+
+        max_ctrl = MaxPressureController(max_cfg)
+        priority_ctrl = PriorityPassController(priority_cfg)
+        max_ctrl.configure()
+        priority_ctrl.configure()
+
+        traffic_states = [
+            {"number_phases": 3, "queue_lengths": [0.0, 7.0, 1.0]},
+            {"number_phases": 3, "queue_lengths": [9.0, 2.0, 1.0]},
+            {"number_phases": 3, "queue_lengths": [3.0, 3.0, 3.0]},
+            {"number_phases": 3, "queue_lengths": [1.0, 0.0, 8.0]},
+        ]
+
+        for step in range(20):
+            metrics = dict(traffic_states[step % len(traffic_states)])
+            priority_metrics = dict(metrics)
+            priority_metrics["upp_bids"] = [99.0, 0.0, 99.0]
+            max_commands = max_ctrl._build_commands(
+                {"traffic_lights": {"TL1": metrics}}
+            )
+            priority_commands = priority_ctrl._build_commands(
+                {"traffic_lights": {"TL1": priority_metrics}}
+            )
+
+            self.assertEqual(priority_commands, max_commands)
+            self.assertEqual(
+                priority_ctrl.light_states["TL1"], max_ctrl.light_states["TL1"]
+            )
+
+    def test_priority_pass_configs_share_max_pressure_auction_timing(self) -> None:
+        compared_fields = [
+            "transition_duration",
+            "bidding_strategy",
+            "auction_winner",
+            "min_green_duration",
+            "max_green_duration",
+            "auction_suspend_duration",
+        ]
+
+        for scenario in ("demo", "vienna"):
+            with self.subTest(scenario=scenario):
+                max_config_path = (
+                    ROOT
+                    / "configurations"
+                    / f"{scenario}_sumo_max_pressure_config.json"
+                )
+                priority_config_path = (
+                    ROOT
+                    / "configurations"
+                    / f"{scenario}_sumo_priority_pass_config.json"
+                )
+                max_config = json.loads(max_config_path.read_text(encoding="utf-8"))
+                priority_config = json.loads(
+                    priority_config_path.read_text(encoding="utf-8")
+                )
+                max_control = max_config["logic_modules"][0]["max_pressure"]
+                priority_control = priority_config["logic_modules"][0]["priority_pass"]
+
+                for field in compared_fields:
+                    self.assertEqual(priority_control[field], max_control[field])
 
 
 class TestOrchestratorBaselineMode(unittest.TestCase):

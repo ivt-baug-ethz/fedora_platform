@@ -91,9 +91,9 @@
         "transition_duration": 3,
         "bidding_strategy": "phase_queue_length",
         "auction_winner": "highest_bid",
-        "min_green_duration": 29,
+        "min_green_duration": 3,
         "max_green_duration": 60,
-        "auction_suspend_duration": 21,
+        "auction_suspend_duration": 4,
         "trade_off": 0.6
       }
     }

@@ -10,6 +10,10 @@
 - 2026-05-31 session note: Python 3.13 was not registered on the Windows launcher in this
   workspace, so validation used the user's Anaconda Python 3.11.5 at
   `C:\Users\kriehl\AppData\Local\anaconda3\python.exe`.
+- 2026-06-27 session note: Python 3.13.13 is available at
+  `C:\Program Files\Python313\python.exe`. Creating `venv/` hit a Windows `ensurepip`
+  temp-permission issue, so pinned dependencies were installed into
+  `venv/Lib/site-packages` with pip and local ACL repair.
 
 ### Requirements and Dependencies
 
@@ -38,26 +42,25 @@ To run the demo scenario:
 1. Ensure SUMO is installed and available in PATH
 2. Ensure virtual environment is activated: `source venv/bin/activate`
 3. Run: `python run.py`
-4. Configuration is loaded from `configurations/sumo_priority_pass_demo_config.json`
+4. Configuration is loaded from `configurations/demo_sumo_priority_pass_config.json`
 5. SUMO simulation files are loaded from `scenarios/demo/sumo/`
 6. Output logs are written to `logs/` directory
 
 ### Selecting Different Controllers
-The `configurations/sumo_priority_pass_demo_config.json` file contains a `controller.type` field
-that can be set to:
-- `"fixed_cycle"` — Uses FixedCycleController
-- `"max_pressure"` — Uses MaxPressureController  
-- `"priority_pass"` — Uses PriorityPassController (default)
+The `logic_modules[0].type` field in each configuration can be set to:
+- `"controller_fixed_cycle"` — Uses FixedCycleController
+- `"controller_max_pressure"` — Uses MaxPressureController
+- `"controller_priority_pass"` — Uses PriorityPassController (default)
 
 ## Test Suite
 Tests are run with:
 ```bash
-pytest src/tests/ -v
+pytest tests/ -v
 ```
 Tests cover:
-- Core component lifecycle management (test_core.py)
-- Priority Pass specific functionality (test_priority_pass.py)
-- All components are tested for proper configuration and behavior
+- Controller FSMs, auction logic, and Priority Pass / Max-Pressure parity (`test_controllers.py`)
+- Evaluator travel-time analysis and plotting (`test_evaluator.py`)
+- Recorder FSM and TCP logging (`test_recorder.py`)
 
 ## Code Quality
 ### Linting

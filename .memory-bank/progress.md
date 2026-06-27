@@ -11,7 +11,7 @@
 
 **Orchestrator-driven components (in `src/`):**
 - `orchestrator.py` — Platform orchestrator FSM: reads full config, creates/starts all sub-components, drives environment step loop via `"step"` / `"apply_and_advance"` messages; dispatches environment class via `_ENVIRONMENT_TYPES`
-- `environment_sumo.py` — `SumoEnvironment` (`NAME = "environment"`): passive SUMO/TraCI FSM, waits for `"step"` from Orchestrator, measurement types injected (not config-driven); type key `"sumo_simulation"`
+- `environment_sumo.py` — `SumoEnvironment` (`NAME = "environment"`): passive SUMO/TraCI FSM, waits for `"step"` from Orchestrator, measurement types injected (not config-driven); type key `"sumo"`
 - `controller_fixed_cycle.py` — Fixed-cycle controller FSM; `get_required_measurements()` returns `[]`
 - `controller_max_pressure.py` — Max-pressure controller FSM; `get_required_measurements()` returns queue metric based on bidding_strategy
 - `controller_priority_pass.py` — Priority Pass controller FSM; `get_required_measurements()` returns queue metric + `"upp_bids"`
@@ -38,6 +38,9 @@
 - Test suite at root-level `tests/` directory
 - Basic functionality tests for core components and Priority Pass implementation
 - Configuration validation tests passing
+- Priority Pass parity regression tests verify that `trade_off = 0.0` matches Max-Pressure
+  phase commands/FSM state and that shipped Priority Pass configs preserve Max-Pressure
+  auction timing.
 
 ## Partially Implemented
 
@@ -63,6 +66,8 @@
 - Fixed-cycle phase progression
 - Max-pressure auction winner selection and bid extraction
 - Priority-pass tau bid blending
+- Priority-pass/Max-Pressure equivalence at `trade_off = 0.0`
+- Demo/Vienna config timing parity between Max-Pressure and Priority Pass
 - Orchestrator logic module instantiation by type
 
 ### tests/test_evaluator.py
