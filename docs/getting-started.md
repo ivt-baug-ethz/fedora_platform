@@ -76,9 +76,14 @@ python run.py configurations/vienna_sumo_priority_pass_config.json
 ### Options
 
 ```bash
-python run.py --help                 # list all options
-python run.py <config> --skip-evaluation   # skip post-run evaluation plots
+python run.py --help                          # list all options
+python run.py <config> --skip-evaluation      # skip post-run evaluation plots
+python run.py <config> --headless             # use headless SUMO binary (no GUI); required
+                                              # for CI and server environments
+python run.py <config> --headless --skip-evaluation  # CI-style run without evaluation visualizations
 ```
+
+The `--headless` flag switches to the `binary_headless` value in `environment.settings` (defaults to `sumo` if absent), bypassing the GUI-based `binary` entry. All provided configuration files already include `"binary_headless": "sumo"`.
 
 ## Output
 

@@ -55,16 +55,12 @@
     },
     "visualization": {
       "vehicle_colors": {
-        "regular": [
-          110,
-          110,
-          110,
-          255
-        ]
+        "regular": [110, 110, 110, 255]
       }
     },
     "settings": {
       "binary": "sumo-gui",
+      "binary_headless": "sumo",
       "config_file": "config.sumocfg",
       "label": "demo_fixed_cycle"
     }
@@ -90,40 +86,29 @@
       "logic_module_state": {
         "step": true,
         "controller_type": true,
-        "light_states": true,
-        "bids": true,
-        "bids_queue": true,
-        "bids_upp": true,
-        "bids_blended": true,
-        "phase_switched": true,
-        "tau": true
+        "light_states": true
       }
     }
   },
   "logic_modules": [
-  {
-    "type": "controller_fixed_cycle",
-    "fixed_cycle": {
-      "transition_duration": 3,
-      "phase_durations": [
-        29,
-        21,
-        29,
-        21
-      ],
-      "default_time_delay": 0,
-      "time_delays": {
-        "J25": 0,
-        "J26": 25,
-        "J27": 0,
-        "J28": 25,
-        "J29": 0,
-        "J30": 0,
-        "J31": 25,
-        "J32": 25,
-        "J33": 0
+    {
+      "type": "controller_fixed_cycle",
+      "fixed_cycle": {
+        "transition_duration": 3,
+        "phase_durations": [29, 21, 29, 21],
+        "default_time_delay": 0,
+        "time_delays": {
+          "J25": 0,
+          "J26": 25,
+          "J27": 0,
+          "J28": 25,
+          "J29": 0,
+          "J30": 0,
+          "J31": 25,
+          "J32": 25,
+          "J33": 0
+        }
       }
     }
-  }
   ]
 }

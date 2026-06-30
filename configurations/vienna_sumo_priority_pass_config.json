@@ -60,22 +60,13 @@
     },
     "visualization": {
       "vehicle_colors": {
-        "priority_pass": [
-          30,
-          111,
-          192,
-          255
-        ],
-        "regular": [
-          110,
-          110,
-          110,
-          255
-        ]
+        "priority_pass": [30, 111, 192, 255],
+        "regular": [110, 110, 110, 255]
       }
     },
     "settings": {
       "binary": "sumo-gui",
+      "binary_headless": "sumo",
       "config_file": "config.sumocfg",
       "label": "vienna_priority_pass"
     }
@@ -102,7 +93,6 @@
         "step": true,
         "controller_type": true,
         "light_states": true,
-        "bids": true,
         "bids_queue": true,
         "bids_upp": true,
         "bids_blended": true,

@@ -55,16 +55,12 @@
     },
     "visualization": {
       "vehicle_colors": {
-        "regular": [
-          110,
-          110,
-          110,
-          255
-        ]
+        "regular": [110, 110, 110, 255]
       }
     },
     "settings": {
       "binary": "sumo-gui",
+      "binary_headless": "sumo",
       "config_file": "config.sumocfg",
       "label": "demo_max_pressure"
     }
@@ -92,11 +88,7 @@
         "controller_type": true,
         "light_states": true,
         "bids": true,
-        "bids_queue": true,
-        "bids_upp": true,
-        "bids_blended": true,
-        "phase_switched": true,
-        "tau": true
+        "phase_switched": true
       }
     }
   },

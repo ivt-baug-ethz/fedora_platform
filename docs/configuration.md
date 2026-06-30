@@ -55,6 +55,7 @@ All runtime settings are loaded from a JSON configuration file. The naming conve
     "type": "sumo",
     "settings": {
       "binary": "sumo-gui",
+      "binary_headless": "sumo",
       "config_file": "config.sumocfg",
       "label": "demo_priority_pass"
     },
@@ -141,7 +142,8 @@ All runtime settings are loaded from a JSON configuration file. The naming conve
 | Field | Description |
 |---|---|
 | `type` | Environment type, currently `"sumo"` |
-| `settings.binary` | SUMO binary name or path (`sumo-gui` or `sumo`) |
+| `settings.binary` | SUMO binary for interactive runs (`sumo-gui`); used when `--headless` is not passed |
+| `settings.binary_headless` | SUMO binary for headless runs (`sumo`); selected by passing `--headless` to `run.py` |
 | `settings.config_file` | SUMO `.sumocfg` file, resolved relative to `scenario_path` |
 | `settings.label` | TraCI connection label |
 | `demand.*` | TraCI spawning and demand parameters |

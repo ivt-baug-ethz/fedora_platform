@@ -54,16 +54,12 @@
     },
     "visualization": {
       "vehicle_colors": {
-        "regular": [
-          110,
-          110,
-          110,
-          255
-        ]
+        "regular": [110, 110, 110, 255]
       }
     },
     "settings": {
       "binary": "sumo-gui",
+      "binary_headless": "sumo",
       "config_file": "config.sumocfg",
       "label": "vienna_baseline"
     }
@@ -86,17 +82,7 @@
         "vehicle_speeds": false,
         "vehicle_waiting_times": false
       },
-      "logic_module_state": {
-        "step": true,
-        "controller_type": true,
-        "light_states": true,
-        "bids": true,
-        "bids_queue": true,
-        "bids_upp": true,
-        "bids_blended": true,
-        "phase_switched": true,
-        "tau": true
-      }
+      "logic_module_state": {}
     }
   },
   "logic_modules": []
