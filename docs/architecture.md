@@ -120,8 +120,10 @@ All messages use a JSON-line envelope over TCP:
 | `logic_command` | Logic Module → Orchestrator | Decision output; `payload.type` identifies command kind |
 | `step` | Orchestrator → Environment | Begin next state-collection iteration |
 | `apply_and_advance` | Orchestrator → Environment | Apply merged commands and advance one step |
+| `get_state` | Orchestrator → Environment / Logic Module(s) | Request a snapshot of internal state (sent when state polling is active) |
+| `state_report` | Environment / Logic Module(s) → Orchestrator | Response to `get_state`; contains only the fields enabled in `state_polling` config |
 | `environment_started` / `environment_stopped` | Environment → Orchestrator | Lifecycle signals |
-| `communication` | Orchestrator → Recorder | Mirror of all routed messages |
+| `communication` | Orchestrator → Recorder | Mirror of all routed messages (including `state_report` responses) |
 
 ## Communication Layer
 

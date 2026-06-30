@@ -54,6 +54,9 @@ python run.py configurations/demo_sumo_max_pressure_config.json
 # Urban Priority Pass (default)
 python run.py configurations/demo_sumo_priority_pass_config.json
 
+# Urban Priority Pass — all state fields logged (diagnostic / validation run)
+python run.py configurations/demo_sumo_priority_pass_full_state_config.json
+
 # Shorthand for the default (priority-pass demo)
 python run.py
 ```

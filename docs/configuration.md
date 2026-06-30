@@ -10,6 +10,7 @@ All runtime settings are loaded from a JSON configuration file. The naming conve
 | `demo_sumo_fixed_cycle_config.json` | Demo | Configurable Fixed-Cycle |
 | `demo_sumo_max_pressure_config.json` | Demo | Max-Pressure |
 | `demo_sumo_priority_pass_config.json` | Demo | Urban Priority Pass |
+| `demo_sumo_priority_pass_full_state_config.json` | Demo | Urban Priority Pass — all state fields logged |
 | `vienna_sumo_baseline_config.json` | Vienna pilot | None (SUMO default signal plans) |
 | `vienna_sumo_fixed_cycle_config.json` | Vienna pilot | Configurable Fixed-Cycle |
 | `vienna_sumo_max_pressure_config.json` | Vienna pilot | Max-Pressure |
@@ -68,7 +69,34 @@ All runtime settings are loaded from a JSON configuration file. The naming conve
   },
   "recorder": {
     "logs_dir": "logs/demo_priority_pass",
-    "log_type": "txt"
+    "log_type": "txt",
+    "topics": [],
+    "vehicle_log_enabled": true,
+    "state_polling": {
+      "interval_steps": 1,
+      "environment_state": {
+        "step": true,
+        "time": true,
+        "vehicle_ids": true,
+        "vehicle_lanes": true,
+        "vehicle_lane_positions": true,
+        "vehicle_upp": true,
+        "pending_commands": true,
+        "vehicle_speeds": false,
+        "vehicle_waiting_times": false
+      },
+      "logic_module_state": {
+        "step": true,
+        "controller_type": true,
+        "light_states": true,
+        "bids": true,
+        "bids_queue": true,
+        "bids_upp": true,
+        "bids_blended": true,
+        "phase_switched": true,
+        "tau": true
+      }
+    }
   },
   "logic_modules": [
     {
@@ -131,10 +159,70 @@ For Priority Pass experiments, keep the auction timing fields aligned with the m
 
 ### `recorder`
 
-| Field | Description |
+Controls what the Recorder writes and whether per-step component state is captured.
+
+| Field | Default | Description |
+|---|---|---|
+| `logs_dir` | *(required)* | Directory for output log files |
+| `log_type` | `"txt"` | Recorder backend; currently only `"txt"` is supported |
+| `topics` | `[]` | Allowlist of message topics to record. An empty list logs **all** topics. Non-empty lists act as a filter (e.g. `["traffic_state", "logic_command"]`). |
+| `vehicle_log_enabled` | `true` | Write per-vehicle arrival/departure events to `vehicle_log.jsonl`. Set to `false` to skip the vehicle log (note: disabling it also disables the post-run `Evaluator`). |
+
+#### Disabling the recorder
+
+Remove the `"recorder"` port from `communication.ports` (and omit the `recorder` section, or set its `logs_dir` to a placeholder) to skip recorder startup entirely. The Orchestrator will not instantiate a Recorder and no log files will be created. This is the lowest-overhead option for runs where logging is not needed.
+
+#### State polling (`state_polling`)
+
+The Orchestrator can query the internal state of each component after every step and forward the responses to the communication log. Polling is **automatically enabled** for a component when at least one of its state attributes is set to `true`; no separate `enabled` flag is needed. If all attributes are `false`, no polling occurs and no extra overhead is introduced.
+
+| Field | Default | Description |
+|---|---|---|
+| `interval_steps` | `1` | Poll every N steps. `1` captures state every step; `10` captures every 10th step. |
+| `environment_state` | — | Dict of boolean flags for environment state fields (see below). |
+| `logic_module_state` | — | Dict of boolean flags for logic module state fields (see below). |
+
+**`environment_state` fields:**
+
+| Key | Description |
 |---|---|
-| `logs_dir` | Directory for output log files |
-| `log_type` | Recorder backend type; currently `"txt"` |
+| `step` | Current simulation step counter |
+| `time` | Simulation time in seconds |
+| `vehicle_ids` | Set of active vehicle IDs |
+| `vehicle_lanes` | Per-vehicle current lane ID |
+| `vehicle_lane_positions` | Per-vehicle position along the current lane |
+| `vehicle_upp` | Per-vehicle UPP token value |
+| `pending_commands` | Command queue awaiting application |
+| `vehicle_speeds` | Per-vehicle speed (TraCI call; minor overhead) |
+| `vehicle_waiting_times` | Per-vehicle accumulated waiting time (TraCI call; minor overhead) |
+
+The first seven fields are maintained in memory during the simulation loop at zero additional cost. `vehicle_speeds` and `vehicle_waiting_times` require a TraCI API call per vehicle per polled step; keep them `false` in production runs where they are not needed.
+
+**`logic_module_state` fields:**
+
+| Key | Applicable to |
+|---|---|
+| `step` | All controllers |
+| `controller_type` | All controllers |
+| `light_states` | All controllers |
+| `bids` | Max-Pressure |
+| `bids_queue` | Priority Pass |
+| `bids_upp` | Priority Pass |
+| `bids_blended` | Priority Pass |
+| `phase_switched` | Max-Pressure, Priority Pass |
+| `tau` | Priority Pass |
+
+Fields not applicable to the active controller type are silently ignored (a `UserWarning` is emitted at startup to flag the mismatch, but the run continues normally).
+
+#### Full-state example
+
+`demo_sumo_priority_pass_full_state_config.json` sets every field to `true` with `interval_steps: 1`. Run it with:
+
+```bash
+python run.py configurations/demo_sumo_priority_pass_full_state_config.json
+```
+
+Use it to verify that state polling works end-to-end or to capture a complete diagnostic trace. For regular benchmarking runs, leave the TraCI fields and bid fields at `false` to avoid the overhead.
 
 ## Adding a New Logic Module
 
