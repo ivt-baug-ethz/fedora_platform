@@ -4,6 +4,10 @@
 
 # FEDORA — Traffic Management Orchestration Framework
 
+[![SUMO Scenarios](https://github.com/ivt-baug-ethz/fedora_platform/actions/workflows/sumo_scenarios.yml/badge.svg)](https://github.com/ivt-baug-ethz/fedora_platform/actions/workflows/sumo_scenarios.yml)
+[![Python Testing](https://github.com/ivt-baug-ethz/fedora_platform/actions/workflows/python_testing.yml/badge.svg)](https://github.com/ivt-baug-ethz/fedora_platform/actions/workflows/python_testing.yml)
+[![Type Checking](https://github.com/ivt-baug-ethz/fedora_platform/actions/workflows/lint.yml/badge.svg)](https://github.com/ivt-baug-ethz/fedora_platform/actions/workflows/lint.yml)
+
 **[Full documentation →](https://ivt-baug-ethz.github.io/fedora_platform/)**
 
 A modular orchestration framework for integrating traffic logic modules (such as traffic signal controllers, demand models, etc.) with compatible simulation environments or real-world deployment sites. The framework decouples decision logic from environment execution through a JSON-line message-passing architecture over TCP: an Orchestrator routes state observations from the environment to all connected logic modules and feeds their merged decisions back to the environment each step.
