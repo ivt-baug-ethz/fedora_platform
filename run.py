@@ -17,6 +17,7 @@ Examples:
     python run.py configurations/vienna_sumo_max_pressure_config.json
     python run.py configurations/vienna_sumo_priority_pass_config.json
     python run.py configurations/demo_sumo_priority_pass_config.json --skip-evaluation
+    python run.py configurations/demo_sumo_priority_pass_config.json --headless
 """
 
 from __future__ import annotations
@@ -33,6 +34,7 @@ def main() -> None:
     # default config; overridden by a positional CLI argument
     config_file = "configurations/demo_sumo_baseline_config.json"
     skip_evaluation = False
+    headless = False
 
     for arg in sys.argv[1:]:
         if arg in ("--help", "-h"):
@@ -43,6 +45,10 @@ def main() -> None:
             print("\nOptions:")
             print(
                 "  --skip-evaluation: Skip evaluation and visualization after simulation"
+            )
+            print(
+                "  --headless:        Use headless SUMO binary (binary_headless from config)"
+                " instead of sumo-gui; required for CI and server environments"
             )
             print("\nAvailable demo configs:")
             print(
@@ -69,12 +75,19 @@ def main() -> None:
             sys.exit(0)
         elif arg == "--skip-evaluation":
             skip_evaluation = True
+        elif arg == "--headless":
+            headless = True
         elif not arg.startswith("--"):
             config_file = arg
 
     # load the full platform configuration from JSON
     with Path(config_file).open("r", encoding="utf-8") as f:
         config = json.load(f)
+
+    # override SUMO binary with the headless variant when --headless is passed
+    if headless:
+        settings = config["environment"]["settings"]
+        settings["binary"] = settings.get("binary_headless", "sumo")
 
     # extract names used for result directory paths and priority-plot visibility
     scenario = str(config["scenario"])

@@ -1,6 +1,27 @@
 # Active Context
 
-## Current Status (2026-06-30) — Unified State Config + Full-State Example
+## Current Status (2026-06-30) — CI Workflow + Headless SUMO
+
+Added GitHub Actions CI workflow that installs SUMO (Ubuntu PPA) and runs all 9 scenarios
+headlessly. Changes:
+
+- **`--headless` flag in `run.py`**: overrides `environment.settings.binary` with
+  `settings.binary_headless` (defaults to `"sumo"` if absent). Allows CI to bypass `sumo-gui`.
+- **`binary_headless: "sumo"` in all 9 configs**: explicit headless binary documented in config;
+  `"binary": "sumo-gui"` preserved for interactive runs.
+- **Filename case fixed**: all configs now reference `route_probabilities.json` (was lowercase);
+  Vienna configs now reference `config.sumocfg` (was `config.sumocfg`). Linux CI is
+  case-sensitive — these were silently correct on macOS only.
+- **`.github/workflows/sumo_scenarios.yml`**: triggers on push to `main`/`dev` and PRs; sets
+  `PYTHONPATH=src` (required because CI uses `pip install -r requirements.txt`, not editable
+  install); installs `sumo` + `sumo-tools` from `ppa:sumo/stable`; runs each of the 9
+  scenario configs with `--headless --skip-evaluation`.
+- **Docs updated**: `docs/configuration.md` (new `binary_headless` row and example JSON);
+  `docs/getting-started.md` (new `--headless` option with description).
+
+80 tests pass; pylint --errors-only: clean.
+
+## Previous Status (2026-06-30) — Unified State Config + Full-State Example
 
 The state-polling system is now fully unified and modular:
 
@@ -26,6 +47,7 @@ is disabled. The controller bid formula was already correct: at `trade_off = 0.0
 Priority Pass configs using different auction FSM timings than Max-Pressure.
 
 Changes:
+
 - `configurations/demo_sumo_priority_pass_config.json`: aligned `min_green_duration` to `3`
   and `auction_suspend_duration` to `4`, matching demo Max-Pressure.
 - `configurations/vienna_sumo_priority_pass_config.json`: aligned the same timing fields
@@ -48,8 +70,9 @@ and the next `step` without waiting for any `logic_command`. The environment app
 commands and SUMO runs its built-in signal plans.
 
 Changes:
+
 - `src/orchestrator.py`: removed `assert len(self.logic_modules) > 0`; added `not
-  self.logic_modules` fast-path in `traffic_state` routing
+self.logic_modules` fast-path in `traffic_state` routing
 - `run.py`: `logic_module_name` defaults to `"baseline"` when `logic_modules` is empty
 - `configurations/demo_sumo_baseline_config.json` — new (no `logic_module` port, `logic_modules: []`)
 - `configurations/vienna_sumo_baseline_config.json` — new
@@ -89,6 +112,7 @@ the JSON config files.
 ## Recent Configuration Reorganization (2026-06-24)
 
 **Configuration Files:**
+
 - Renamed from `sumo_*_demo_config.json` to `{scenario}_sumo_{controller}_config.json` pattern
 - Demo scenario: `demo_sumo_*.json` (3 configs for fixed-cycle, max-pressure, priority-pass)
 - Vienna pilot: `vienna_sumo_*.json` (3 configs for each controller type)
@@ -96,6 +120,7 @@ the JSON config files.
 - Each config contains only relevant parameters (no unused controller sections)
 
 **New System Flowchart:**
+
 - Added comprehensive Mermaid flowchart to README showing:
   - Component startup sequence (Recorder → Controller → Orchestrator → Simulator)
   - 0.2s pauses between component starts for initialization
@@ -107,6 +132,7 @@ the JSON config files.
 ## Previous Reorganization (2026-06-24)
 
 **Structural changes:**
+
 - Reorganized core components into `src/`:
   - `src/orchestrator.py` — TCP JSON-line message router FSM
   - `src/controller_fixed_cycle.py` — Fixed-cycle controller FSM
@@ -160,7 +186,7 @@ All `src/` files were comprehensively cleaned up:
 - **orchestrator.py** (formerly connector.py): Inlined `_configure_recorder()` into `configure()`; added Args/Returns docstrings throughout; updated class docstring
 - **recorder.py**: Fixed import order; removed self-evident inline comments; added Args/Returns docstrings
 - **evaluator.py**: Removed dead `if plt is None:` guards (plt is always imported); condensed docstrings
-- **controller_*.py**: Added Args/Returns to all docstrings; inline comments for non-obvious algorithm steps; renamed `_determine_auction_winner_phase` → `_determine_auction_winner` in both auction controllers
+- **controller\_\*.py**: Added Args/Returns to all docstrings; inline comments for non-obvious algorithm steps; renamed `_determine_auction_winner_phase` → `_determine_auction_winner` in both auction controllers
 - **README.md**: Fixed tests/ directory listing (only `test_evaluator.py` exists); corrected "SQLite backend available" to "additional backends planned"
 
 ## Next Logical Steps
@@ -189,6 +215,7 @@ All `src/` files were comprehensively cleaned up:
 ## Test Coverage Extension (2026-06-25)
 
 Added two new test files:
+
 - `tests/test_controllers.py` (54 tests): FSM lifecycle for all 3 controller types; `get_required_measurements()`; fixed-cycle phase progression; max-pressure auction winner selection and bid extraction; priority-pass tau bid blending; Orchestrator logic module instantiation by type
 - `tests/test_recorder.py` (12 tests): Recorder FSM; configure sets paths; invalid transitions; TCP communication and multi-message logging
 
@@ -197,13 +224,15 @@ Total: 67 tests, all passing.
 ## Inline Comments Added (2026-06-25)
 
 All 8 source files now have compact lowercase inline comments on every logical block:
+
 - `run.py`, `recorder.py`, `evaluator.py`, `orchestrator.py`, `simulation_sumo.py`
 - `controller_fixed_cycle.py`, `controller_max_pressure.py`, `controller_priority_pass.py`
-Recurring patterns (SO_REUSEADDR, lazy TCP connection, 1-second timeout) use identical phrasing across all files.
+  Recurring patterns (SO_REUSEADDR, lazy TCP connection, 1-second timeout) use identical phrasing across all files.
 
 ## Component Slot Rename: "controller" → "logic_module" (2026-06-25)
 
 The pluggable component slot was renamed from "controller" to "logic_module":
+
 - Port key in `communication.ports`: `"controller"` → `"logic_module"`
 - Config section: `"controller": { "type": ... }` → `"logic_module": { "type": ... }`
 - Orchestrator: `self.controller` → `self.logic_module`, `_configure_controller` → `_configure_logic_module`, `_CONTROLLER_TYPES` → `_LOGIC_MODULE_TYPES`, `_AnyController` → `_AnyLogicModule`
