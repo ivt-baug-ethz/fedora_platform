@@ -91,7 +91,9 @@ class Recorder:
 
         # read logging control settings
         self.topics = set(self.configuration.get("topics", []))
-        self.vehicle_log_enabled = bool(self.configuration.get("vehicle_log_enabled", True))
+        self.vehicle_log_enabled = bool(
+            self.configuration.get("vehicle_log_enabled", True)
+        )
 
         # read TCP endpoint from config
         self.host = str(self.configuration.get("host", "127.0.0.1"))
@@ -224,7 +226,9 @@ class Recorder:
         meta: dict[str, Any] = {
             "type": "run_meta",
             "scenario": self.configuration.get("scenario", "unknown"),
-            "logic_module_types": list(self.configuration.get("logic_module_types", [])),
+            "logic_module_types": list(
+                self.configuration.get("logic_module_types", [])
+            ),
             "logged_topics": sorted(self.topics) if self.topics else [],
             "vehicle_log_enabled": self.vehicle_log_enabled,
         }

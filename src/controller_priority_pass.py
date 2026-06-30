@@ -30,10 +30,18 @@ class PriorityPassController:
     AUCTION_CHANGING_SIGNAL = "changing_signal"
     AUCTION_WAIT_MIN_GREEN = "wait_min_green_time"
     AUCTION_WAIT_NEXT = "wait_for_next_auction"
-    SUPPORTED_STATE_KEYS: frozenset[str] = frozenset({
-        "step", "controller_type", "light_states",
-        "bids_queue", "bids_upp", "bids_blended", "phase_switched", "tau",
-    })
+    SUPPORTED_STATE_KEYS: frozenset[str] = frozenset(
+        {
+            "step",
+            "controller_type",
+            "light_states",
+            "bids_queue",
+            "bids_upp",
+            "bids_blended",
+            "phase_switched",
+            "tau",
+        }
+    )
 
     STATES = (
         STATE_CREATED,
@@ -148,7 +156,9 @@ class PriorityPassController:
         )
         self._state_cfg = dict(self.configuration.get("state_cfg", {}))
         unsupported = [
-            k for k, v in self._state_cfg.items() if v and k not in self.SUPPORTED_STATE_KEYS
+            k
+            for k, v in self._state_cfg.items()
+            if v and k not in self.SUPPORTED_STATE_KEYS
         ]
         if unsupported:
             warnings.warn(
@@ -422,7 +432,9 @@ class PriorityPassController:
         if traffic_light:
             cfg = self._state_cfg
             if cfg.get("bids_queue", False) or cfg.get("bids_blended", False):
-                strategy = str(self.control.get("bidding_strategy", "phase_queue_length"))
+                strategy = str(
+                    self.control.get("bidding_strategy", "phase_queue_length")
+                )
                 weighted_strategies = {
                     "phase_weighted_vehicle_position",
                     "phase_weighted_queue_length",

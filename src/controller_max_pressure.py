@@ -30,9 +30,15 @@ class MaxPressureController:
     AUCTION_CHANGING_SIGNAL = "changing_signal"
     AUCTION_WAIT_MIN_GREEN = "wait_min_green_time"
     AUCTION_WAIT_NEXT = "wait_for_next_auction"
-    SUPPORTED_STATE_KEYS: frozenset[str] = frozenset({
-        "step", "controller_type", "light_states", "bids", "phase_switched",
-    })
+    SUPPORTED_STATE_KEYS: frozenset[str] = frozenset(
+        {
+            "step",
+            "controller_type",
+            "light_states",
+            "bids",
+            "phase_switched",
+        }
+    )
 
     STATES = (
         STATE_CREATED,
@@ -140,7 +146,9 @@ class MaxPressureController:
         self.control = dict(self.configuration.get("max_pressure", {}))
         self._state_cfg = dict(self.configuration.get("state_cfg", {}))
         unsupported = [
-            k for k, v in self._state_cfg.items() if v and k not in self.SUPPORTED_STATE_KEYS
+            k
+            for k, v in self._state_cfg.items()
+            if v and k not in self.SUPPORTED_STATE_KEYS
         ]
         if unsupported:
             warnings.warn(

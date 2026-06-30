@@ -38,10 +38,19 @@ class SumoEnvironment:
         LANE_MEASUREMENT_WEIGHTED_QUEUE_LENGTHS,
         LANE_MEASUREMENT_UPP_BIDS,
     }
-    SUPPORTED_STATE_KEYS: frozenset[str] = frozenset({
-        "step", "time", "vehicle_ids", "vehicle_lanes", "vehicle_lane_positions",
-        "vehicle_upp", "pending_commands", "vehicle_speeds", "vehicle_waiting_times",
-    })
+    SUPPORTED_STATE_KEYS: frozenset[str] = frozenset(
+        {
+            "step",
+            "time",
+            "vehicle_ids",
+            "vehicle_lanes",
+            "vehicle_lane_positions",
+            "vehicle_upp",
+            "pending_commands",
+            "vehicle_speeds",
+            "vehicle_waiting_times",
+        }
+    )
 
     STATES = (
         STATE_CREATED,
@@ -253,10 +262,14 @@ class SumoEnvironment:
         os.makedirs(logs_dir, exist_ok=True)
         self.vehicle_log_path = Path(logs_dir) / "vehicle_log.jsonl"
 
-        self.vehicle_log_enabled = bool(self.configuration.get("vehicle_log_enabled", True))
+        self.vehicle_log_enabled = bool(
+            self.configuration.get("vehicle_log_enabled", True)
+        )
         self._state_cfg = dict(self.configuration.get("state_cfg", {}))
         unsupported = [
-            k for k, v in self._state_cfg.items() if v and k not in self.SUPPORTED_STATE_KEYS
+            k
+            for k, v in self._state_cfg.items()
+            if v and k not in self.SUPPORTED_STATE_KEYS
         ]
         if unsupported:
             warnings.warn(
@@ -276,7 +289,9 @@ class SumoEnvironment:
 
             if self.vehicle_log_enabled:
                 # open vehicle log in write mode to start fresh for each run
-                self.vehicle_log_file = self.vehicle_log_path.open("w", encoding="utf-8")
+                self.vehicle_log_file = self.vehicle_log_path.open(
+                    "w", encoding="utf-8"
+                )
                 self._write_vehicle_log_meta()
 
             # launch SUMO process; sends environment_started to kick off the loop
@@ -949,7 +964,10 @@ class SumoEnvironment:
             state["pending_commands"] = dict(self.pending_commands)
         if cfg.get("vehicle_speeds", False) and self._cached_vehicle_speeds:
             state["vehicle_speeds"] = dict(self._cached_vehicle_speeds)
-        if cfg.get("vehicle_waiting_times", False) and self._cached_vehicle_waiting_times:
+        if (
+            cfg.get("vehicle_waiting_times", False)
+            and self._cached_vehicle_waiting_times
+        ):
             state["vehicle_waiting_times"] = dict(self._cached_vehicle_waiting_times)
         self._send_message("orchestrator", "state_report", state)
 

@@ -177,11 +177,10 @@ class TestRecorderCommunication(unittest.TestCase):
 class TestRecorderConfigurableLogging(unittest.TestCase):
     """Tests for the configurable logging features: enabled flag, topic filter, run_meta."""
 
-    def _send_messages(
-        self, port: int, messages: list[dict]
-    ) -> None:
+    def _send_messages(self, port: int, messages: list[dict]) -> None:
         """Helper to send a list of JSON-line messages to a TCP port."""
         import socket as sock_mod
+
         conn = sock_mod.create_connection(("127.0.0.1", port), timeout=2.0)
         for msg in messages:
             conn.sendall(json.dumps(msg, sort_keys=True).encode("utf-8") + b"\n")
@@ -191,17 +190,24 @@ class TestRecorderConfigurableLogging(unittest.TestCase):
     def test_run_meta_is_first_line(self) -> None:
         """First line of the log must be a run_meta record with expected fields."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            rec = Recorder({
-                "port": 0,
-                "logs_dir": tmpdir,
-                "log_type": "txt",
-                "scenario": "test_scenario",
-                "logic_module_types": ["controller_fixed_cycle"],
-            })
+            rec = Recorder(
+                {
+                    "port": 0,
+                    "logs_dir": tmpdir,
+                    "log_type": "txt",
+                    "scenario": "test_scenario",
+                    "logic_module_types": ["controller_fixed_cycle"],
+                }
+            )
             rec.start()
             rec.stop()
 
-            lines = (Path(tmpdir) / "communication_log.txt").read_text().strip().splitlines()
+            lines = (
+                (Path(tmpdir) / "communication_log.txt")
+                .read_text()
+                .strip()
+                .splitlines()
+            )
             self.assertGreater(len(lines), 0)
             meta = json.loads(lines[0])
             self.assertEqual(meta.get("type"), "run_meta")
@@ -214,28 +220,50 @@ class TestRecorderConfigurableLogging(unittest.TestCase):
         import socket as sock_mod
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            rec = Recorder({
-                "port": 0,
-                "logs_dir": tmpdir,
-                "log_type": "txt",
-                "topics": ["traffic_state"],
-            })
+            rec = Recorder(
+                {
+                    "port": 0,
+                    "logs_dir": tmpdir,
+                    "log_type": "txt",
+                    "topics": ["traffic_state"],
+                }
+            )
             rec.start()
             assert rec.server_socket is not None
             port = rec.server_socket.getsockname()[1]
 
             messages = [
-                {"sender": "env", "target": "orch", "topic": "comm", "sent_at": time.time(),
-                 "payload": {"topic": "traffic_state", "step": 1}},
-                {"sender": "ctrl", "target": "orch", "topic": "comm", "sent_at": time.time(),
-                 "payload": {"topic": "logic_command", "step": 1}},
-                {"sender": "env", "target": "orch", "topic": "comm", "sent_at": time.time(),
-                 "payload": {"topic": "traffic_state", "step": 2}},
+                {
+                    "sender": "env",
+                    "target": "orch",
+                    "topic": "comm",
+                    "sent_at": time.time(),
+                    "payload": {"topic": "traffic_state", "step": 1},
+                },
+                {
+                    "sender": "ctrl",
+                    "target": "orch",
+                    "topic": "comm",
+                    "sent_at": time.time(),
+                    "payload": {"topic": "logic_command", "step": 1},
+                },
+                {
+                    "sender": "env",
+                    "target": "orch",
+                    "topic": "comm",
+                    "sent_at": time.time(),
+                    "payload": {"topic": "traffic_state", "step": 2},
+                },
             ]
             self._send_messages(port, messages)
             rec.stop()
 
-            lines = (Path(tmpdir) / "communication_log.txt").read_text().strip().splitlines()
+            lines = (
+                (Path(tmpdir) / "communication_log.txt")
+                .read_text()
+                .strip()
+                .splitlines()
+            )
             # run_meta + 2 traffic_state messages (logic_command filtered out)
             self.assertEqual(len(lines), 3)
             # verify both data lines are traffic_state
@@ -248,26 +276,43 @@ class TestRecorderConfigurableLogging(unittest.TestCase):
         import socket as sock_mod
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            rec = Recorder({
-                "port": 0,
-                "logs_dir": tmpdir,
-                "log_type": "txt",
-                "topics": [],
-            })
+            rec = Recorder(
+                {
+                    "port": 0,
+                    "logs_dir": tmpdir,
+                    "log_type": "txt",
+                    "topics": [],
+                }
+            )
             rec.start()
             assert rec.server_socket is not None
             port = rec.server_socket.getsockname()[1]
 
             messages = [
-                {"sender": "a", "target": "b", "topic": "x", "sent_at": time.time(),
-                 "payload": {"topic": "topic_a"}},
-                {"sender": "a", "target": "b", "topic": "x", "sent_at": time.time(),
-                 "payload": {"topic": "topic_b"}},
+                {
+                    "sender": "a",
+                    "target": "b",
+                    "topic": "x",
+                    "sent_at": time.time(),
+                    "payload": {"topic": "topic_a"},
+                },
+                {
+                    "sender": "a",
+                    "target": "b",
+                    "topic": "x",
+                    "sent_at": time.time(),
+                    "payload": {"topic": "topic_b"},
+                },
             ]
             self._send_messages(port, messages)
             rec.stop()
 
-            lines = (Path(tmpdir) / "communication_log.txt").read_text().strip().splitlines()
+            lines = (
+                (Path(tmpdir) / "communication_log.txt")
+                .read_text()
+                .strip()
+                .splitlines()
+            )
             # run_meta + 2 messages
             self.assertEqual(len(lines), 3)
 

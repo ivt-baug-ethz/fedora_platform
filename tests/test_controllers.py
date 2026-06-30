@@ -718,6 +718,7 @@ class TestStateCfgUnsupportedKeyWarnings(unittest.TestCase):
 
     def test_no_warning_when_all_keys_supported(self) -> None:
         import warnings as _warnings
+
         with _warnings.catch_warnings(record=True) as caught:
             _warnings.simplefilter("always")
             self._make_controller(
@@ -729,7 +730,11 @@ class TestStateCfgUnsupportedKeyWarnings(unittest.TestCase):
                         "time_delays": {},
                         "default_time_delay": 0,
                     },
-                    "state_cfg": {"step": True, "controller_type": True, "light_states": True},
+                    "state_cfg": {
+                        "step": True,
+                        "controller_type": True,
+                        "light_states": True,
+                    },
                 },
             )
         user_warnings = [w for w in caught if issubclass(w.category, UserWarning)]

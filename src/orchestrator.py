@@ -150,7 +150,9 @@ class Orchestrator:
         if recorder_cfg.get("enabled", True):
             recorder_cfg["host"] = self.host
             recorder_cfg["port"] = int(communication["ports"]["recorder"])
-            recorder_cfg["scenario"] = str(self.configuration.get("scenario", "unknown"))
+            recorder_cfg["scenario"] = str(
+                self.configuration.get("scenario", "unknown")
+            )
             recorder_cfg["logic_module_types"] = [
                 str(m.get("type", "unknown"))
                 for m in list(self.configuration["logic_modules"])

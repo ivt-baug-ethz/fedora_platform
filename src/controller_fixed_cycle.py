@@ -30,9 +30,13 @@ class FixedCycleController:
     CYCLE_DELAY = "delay"
     CYCLE_GREEN = "green"
     CYCLE_TRANSITION = "transition"
-    SUPPORTED_STATE_KEYS: frozenset[str] = frozenset({
-        "step", "controller_type", "light_states",
-    })
+    SUPPORTED_STATE_KEYS: frozenset[str] = frozenset(
+        {
+            "step",
+            "controller_type",
+            "light_states",
+        }
+    )
 
     STATES = (
         STATE_CREATED,
@@ -126,7 +130,9 @@ class FixedCycleController:
         self.control = dict(self.configuration.get("fixed_cycle", {}))
         self._state_cfg = dict(self.configuration.get("state_cfg", {}))
         unsupported = [
-            k for k, v in self._state_cfg.items() if v and k not in self.SUPPORTED_STATE_KEYS
+            k
+            for k, v in self._state_cfg.items()
+            if v and k not in self.SUPPORTED_STATE_KEYS
         ]
         if unsupported:
             warnings.warn(
