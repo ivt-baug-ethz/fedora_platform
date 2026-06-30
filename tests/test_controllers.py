@@ -548,6 +548,7 @@ class TestOrchestratorBaselineMode(unittest.TestCase):
         orchestrator.port = 0
         orchestrator.logic_modules = []
         orchestrator._logic_module_names = []
+        orchestrator.configuration = {"recorder": {}}
         return orchestrator
 
     def test_configure_logic_modules_empty_list(self) -> None:
@@ -587,6 +588,7 @@ class TestOrchestratorControllerInstantiation(unittest.TestCase):
         orchestrator.port = 0
         orchestrator.logic_modules = []
         orchestrator._logic_module_names = []
+        orchestrator.configuration = {"recorder": {}}
 
         communication = {"ports": {"logic_module": 0}}
         setup = {"random_seed": 42, "traffic_lights": []}
@@ -638,6 +640,100 @@ class TestOrchestratorControllerInstantiation(unittest.TestCase):
         # orchestrator endpoint is injected as ("127.0.0.1", 0) before configure()
         # it will be populated when configure() is called
         self.assertIsNotNone(ctrl.configuration.get("orchestrator"))
+
+
+class TestStateCfgUnsupportedKeyWarnings(unittest.TestCase):
+    """Verify that unsupported state_cfg keys emit UserWarning without raising."""
+
+    def _make_controller(self, cls, extra_cfg: dict):
+        """Instantiate and configure a controller with the given extra config."""
+        cfg = {
+            "host": "127.0.0.1",
+            "port": 0,
+            "orchestrator": {"host": "127.0.0.1", "port": 0},
+            "traffic_lights": [],
+            "random_seed": 42,
+        }
+        cfg.update(extra_cfg)
+        ctrl = cls(cfg)
+        ctrl.configure()
+        return ctrl
+
+    def test_fixed_cycle_warns_on_unsupported_key(self) -> None:
+        with self.assertWarns(UserWarning) as ctx:
+            self._make_controller(
+                FixedCycleController,
+                {
+                    "fixed_cycle": {
+                        "phase_durations": [10],
+                        "transition_duration": 2,
+                        "time_delays": {},
+                        "default_time_delay": 0,
+                    },
+                    "state_cfg": {"step": True, "bids_queue": True},
+                },
+            )
+        msg = str(ctx.warning)
+        self.assertIn("bids_queue", msg)
+        self.assertNotIn("step", msg)
+
+    def test_max_pressure_warns_on_unsupported_key(self) -> None:
+        with self.assertWarns(UserWarning) as ctx:
+            self._make_controller(
+                MaxPressureController,
+                {
+                    "max_pressure": {
+                        "bidding_strategy": "phase_queue_length",
+                        "min_green_duration": 5,
+                        "max_green_duration": 20,
+                        "auction_suspend_duration": 3,
+                        "transition_duration": 2,
+                    },
+                    "state_cfg": {"bids": True, "tau": True},
+                },
+            )
+        msg = str(ctx.warning)
+        self.assertIn("tau", msg)
+        self.assertNotIn("bids", msg)
+
+    def test_priority_pass_warns_on_unsupported_key(self) -> None:
+        with self.assertWarns(UserWarning) as ctx:
+            self._make_controller(
+                PriorityPassController,
+                {
+                    "priority_pass": {
+                        "bidding_strategy": "phase_queue_length",
+                        "min_green_duration": 5,
+                        "max_green_duration": 20,
+                        "auction_suspend_duration": 3,
+                        "transition_duration": 2,
+                        "trade_off": 0.5,
+                    },
+                    "state_cfg": {"bids_queue": True, "bids": True},
+                },
+            )
+        msg = str(ctx.warning)
+        self.assertIn("bids", msg)
+        self.assertNotIn("bids_queue", msg)
+
+    def test_no_warning_when_all_keys_supported(self) -> None:
+        import warnings as _warnings
+        with _warnings.catch_warnings(record=True) as caught:
+            _warnings.simplefilter("always")
+            self._make_controller(
+                FixedCycleController,
+                {
+                    "fixed_cycle": {
+                        "phase_durations": [10],
+                        "transition_duration": 2,
+                        "time_delays": {},
+                        "default_time_delay": 0,
+                    },
+                    "state_cfg": {"step": True, "controller_type": True, "light_states": True},
+                },
+            )
+        user_warnings = [w for w in caught if issubclass(w.category, UserWarning)]
+        self.assertEqual(user_warnings, [])
 
 
 if __name__ == "__main__":

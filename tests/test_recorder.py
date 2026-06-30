@@ -134,8 +134,10 @@ class TestRecorderCommunication(unittest.TestCase):
             log_path = Path(tmpdir) / "communication_log.txt"
             self.assertTrue(log_path.exists())
             lines = log_path.read_text(encoding="utf-8").strip().splitlines()
-            self.assertEqual(len(lines), 1)
-            record = json.loads(lines[0])
+            # line 0 is always the run_meta header; line 1 is the message
+            self.assertEqual(len(lines), 2)
+            self.assertEqual(json.loads(lines[0]).get("type"), "run_meta")
+            record = json.loads(lines[1])
             self.assertIn("logged_at", record)
             self.assertEqual(record["message"]["topic"], "communication")
             self.assertEqual(record["message"]["payload"]["data"], "hello")
@@ -168,6 +170,105 @@ class TestRecorderCommunication(unittest.TestCase):
 
             log_path = Path(tmpdir) / "communication_log.txt"
             lines = log_path.read_text(encoding="utf-8").strip().splitlines()
+            # run_meta header + 3 messages
+            self.assertEqual(len(lines), 4)
+
+
+class TestRecorderConfigurableLogging(unittest.TestCase):
+    """Tests for the configurable logging features: enabled flag, topic filter, run_meta."""
+
+    def _send_messages(
+        self, port: int, messages: list[dict]
+    ) -> None:
+        """Helper to send a list of JSON-line messages to a TCP port."""
+        import socket as sock_mod
+        conn = sock_mod.create_connection(("127.0.0.1", port), timeout=2.0)
+        for msg in messages:
+            conn.sendall(json.dumps(msg, sort_keys=True).encode("utf-8") + b"\n")
+        time.sleep(0.15)
+        conn.close()
+
+    def test_run_meta_is_first_line(self) -> None:
+        """First line of the log must be a run_meta record with expected fields."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            rec = Recorder({
+                "port": 0,
+                "logs_dir": tmpdir,
+                "log_type": "txt",
+                "scenario": "test_scenario",
+                "logic_module_types": ["controller_fixed_cycle"],
+            })
+            rec.start()
+            rec.stop()
+
+            lines = (Path(tmpdir) / "communication_log.txt").read_text().strip().splitlines()
+            self.assertGreater(len(lines), 0)
+            meta = json.loads(lines[0])
+            self.assertEqual(meta.get("type"), "run_meta")
+            self.assertEqual(meta.get("scenario"), "test_scenario")
+            self.assertIn("logged_topics", meta)
+            self.assertIn("vehicle_log_enabled", meta)
+
+    def test_topic_filter_allows_only_listed_topics(self) -> None:
+        """Only messages whose inner payload topic is in the allowlist are written."""
+        import socket as sock_mod
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            rec = Recorder({
+                "port": 0,
+                "logs_dir": tmpdir,
+                "log_type": "txt",
+                "topics": ["traffic_state"],
+            })
+            rec.start()
+            assert rec.server_socket is not None
+            port = rec.server_socket.getsockname()[1]
+
+            messages = [
+                {"sender": "env", "target": "orch", "topic": "comm", "sent_at": time.time(),
+                 "payload": {"topic": "traffic_state", "step": 1}},
+                {"sender": "ctrl", "target": "orch", "topic": "comm", "sent_at": time.time(),
+                 "payload": {"topic": "logic_command", "step": 1}},
+                {"sender": "env", "target": "orch", "topic": "comm", "sent_at": time.time(),
+                 "payload": {"topic": "traffic_state", "step": 2}},
+            ]
+            self._send_messages(port, messages)
+            rec.stop()
+
+            lines = (Path(tmpdir) / "communication_log.txt").read_text().strip().splitlines()
+            # run_meta + 2 traffic_state messages (logic_command filtered out)
+            self.assertEqual(len(lines), 3)
+            # verify both data lines are traffic_state
+            for line in lines[1:]:
+                record = json.loads(line)
+                self.assertEqual(record["message"]["payload"]["topic"], "traffic_state")
+
+    def test_topic_filter_empty_logs_all(self) -> None:
+        """An empty topics list means no filtering — all messages are logged."""
+        import socket as sock_mod
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            rec = Recorder({
+                "port": 0,
+                "logs_dir": tmpdir,
+                "log_type": "txt",
+                "topics": [],
+            })
+            rec.start()
+            assert rec.server_socket is not None
+            port = rec.server_socket.getsockname()[1]
+
+            messages = [
+                {"sender": "a", "target": "b", "topic": "x", "sent_at": time.time(),
+                 "payload": {"topic": "topic_a"}},
+                {"sender": "a", "target": "b", "topic": "x", "sent_at": time.time(),
+                 "payload": {"topic": "topic_b"}},
+            ]
+            self._send_messages(port, messages)
+            rec.stop()
+
+            lines = (Path(tmpdir) / "communication_log.txt").read_text().strip().splitlines()
+            # run_meta + 2 messages
             self.assertEqual(len(lines), 3)
 
 

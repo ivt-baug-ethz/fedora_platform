@@ -10,6 +10,7 @@ import socket
 import sys
 import threading
 import time
+import warnings
 from pathlib import Path
 from typing import Any, TextIO
 
@@ -37,6 +38,10 @@ class SumoEnvironment:
         LANE_MEASUREMENT_WEIGHTED_QUEUE_LENGTHS,
         LANE_MEASUREMENT_UPP_BIDS,
     }
+    SUPPORTED_STATE_KEYS: frozenset[str] = frozenset({
+        "step", "time", "vehicle_ids", "vehicle_lanes", "vehicle_lane_positions",
+        "vehicle_upp", "pending_commands", "vehicle_speeds", "vehicle_waiting_times",
+    })
 
     STATES = (
         STATE_CREATED,
@@ -141,6 +146,12 @@ class SumoEnvironment:
         self.vehicle_log_path: Path = Path("logs/vehicle_log.jsonl")
         self.vehicle_log_lock = threading.Lock()
         self.vehicle_arrivals: dict[str, float] = {}
+        self.vehicle_log_enabled: bool = True
+
+        # state reporting config and caches for TraCI-fetched fields (populated in _run_step)
+        self._state_cfg: dict[str, bool] = {}
+        self._cached_vehicle_speeds: dict[str, float] = {}
+        self._cached_vehicle_waiting_times: dict[str, float] = {}
 
     def configure(self) -> "SumoEnvironment":
         """Load all runtime settings from the configuration dict and enter CONFIGURED.
@@ -242,6 +253,18 @@ class SumoEnvironment:
         os.makedirs(logs_dir, exist_ok=True)
         self.vehicle_log_path = Path(logs_dir) / "vehicle_log.jsonl"
 
+        self.vehicle_log_enabled = bool(self.configuration.get("vehicle_log_enabled", True))
+        self._state_cfg = dict(self.configuration.get("state_cfg", {}))
+        unsupported = [
+            k for k, v in self._state_cfg.items() if v and k not in self.SUPPORTED_STATE_KEYS
+        ]
+        if unsupported:
+            warnings.warn(
+                f"{self.__class__.__name__}: state_cfg has unsupported keys {unsupported}",
+                UserWarning,
+                stacklevel=2,
+            )
+
         return self
 
     def start(self) -> None:
@@ -251,8 +274,10 @@ class SumoEnvironment:
         if self.state == self.STATE_CONFIGURED:
             self._open_server()
 
-            # open vehicle log in write mode to start fresh for each run
-            self.vehicle_log_file = self.vehicle_log_path.open("w", encoding="utf-8")
+            if self.vehicle_log_enabled:
+                # open vehicle log in write mode to start fresh for each run
+                self.vehicle_log_file = self.vehicle_log_path.open("w", encoding="utf-8")
+                self._write_vehicle_log_meta()
 
             # launch SUMO process; sends environment_started to kick off the loop
             self._open_sumo()
@@ -521,6 +546,9 @@ class SumoEnvironment:
             # release _run_loop to execute the next simulation step
             self.step_event.set()
 
+        elif topic == "get_state":
+            self._send_state_report()
+
         elif topic == "shutdown":
             # unblock all waits so the run thread can exit cleanly
             self.stop_event.set()
@@ -624,6 +652,18 @@ class SumoEnvironment:
         # detect arrivals/departures before reading positions
         self._track_vehicle_events()
         self._update_vehicle_positions()
+
+        # cache TraCI-fetched state for get_state responses, only when configured
+        if self._state_cfg.get("vehicle_speeds", False):
+            self._cached_vehicle_speeds = {
+                vid: float(self.connection.vehicle.getSpeed(vid))
+                for vid in self.vehicle_ids
+            }
+        if self._state_cfg.get("vehicle_waiting_times", False):
+            self._cached_vehicle_waiting_times = {
+                vid: float(self.connection.vehicle.getAccumulatedWaitingTime(vid))
+                for vid in self.vehicle_ids
+            }
 
         # send current state to the controller and wait briefly for a response
         self._send_message("logic_module", "traffic_state", self._build_traffic_state())
@@ -871,6 +911,47 @@ class SumoEnvironment:
             self.pending_commands.clear()
         for traffic_light, phase_signal in commands.items():
             self.connection.trafficlight.setPhase(traffic_light, phase_signal)
+
+    def _write_vehicle_log_meta(self) -> None:
+        """Write a run_meta header as the first record of vehicle_log.jsonl."""
+        meta = {
+            "type": "run_meta",
+            "scenario": self.configuration.get("settings", {}).get("label", "unknown"),
+            "traffic_lights": list(self.traffic_lights),
+            "max_steps": self.max_steps,
+            "spawn_horizon": self.spawn_horizon,
+            "random_seed": int(
+                self.configuration.get("settings", {}).get("random_seed", 42)
+            ),
+        }
+        with self.vehicle_log_lock:
+            if self.vehicle_log_file is not None:
+                self.vehicle_log_file.write(json.dumps(meta) + "\n")
+                self.vehicle_log_file.flush()
+
+    def _send_state_report(self) -> None:
+        """Respond to a get_state request with a snapshot of configured environment state."""
+        cfg = self._state_cfg
+        state: dict[str, Any] = {}
+        if cfg.get("step", False):
+            state["step"] = self.step
+        if cfg.get("time", False):
+            state["time"] = self.time
+        if cfg.get("vehicle_ids", False):
+            state["vehicle_ids"] = list(self.vehicle_ids)
+        if cfg.get("vehicle_lanes", False):
+            state["vehicle_lanes"] = dict(self.vehicle_lanes)
+        if cfg.get("vehicle_lane_positions", False):
+            state["vehicle_lane_positions"] = dict(self.vehicle_lane_positions)
+        if cfg.get("vehicle_upp", False):
+            state["vehicle_upp"] = dict(self.vehicle_upp)
+        if cfg.get("pending_commands", False):
+            state["pending_commands"] = dict(self.pending_commands)
+        if cfg.get("vehicle_speeds", False) and self._cached_vehicle_speeds:
+            state["vehicle_speeds"] = dict(self._cached_vehicle_speeds)
+        if cfg.get("vehicle_waiting_times", False) and self._cached_vehicle_waiting_times:
+            state["vehicle_waiting_times"] = dict(self._cached_vehicle_waiting_times)
+        self._send_message("orchestrator", "state_report", state)
 
     def _log_vehicle_event(
         self, vehicle_id: str, event_type: str, event_time: float

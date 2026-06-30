@@ -77,11 +77,11 @@
     "settings": {
       "binary": "sumo-gui",
       "config_file": "config.sumocfg",
-      "label": "demo_priority_pass"
+      "label": "demo_priority_pass_full_state"
     }
   },
   "recorder": {
-    "logs_dir": "logs/demo_priority_pass",
+    "logs_dir": "logs/demo_priority_pass_full_state",
     "log_type": "txt",
     "topics": [],
     "vehicle_log_enabled": true,
@@ -95,8 +95,8 @@
         "vehicle_lane_positions": true,
         "vehicle_upp": true,
         "pending_commands": true,
-        "vehicle_speeds": false,
-        "vehicle_waiting_times": false
+        "vehicle_speeds": true,
+        "vehicle_waiting_times": true
       },
       "logic_module_state": {
         "step": true,
