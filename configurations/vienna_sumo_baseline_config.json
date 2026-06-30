@@ -70,7 +70,34 @@
   },
   "recorder": {
     "logs_dir": "logs/vienna_baseline",
-    "log_type": "txt"
+    "log_type": "txt",
+    "topics": [],
+    "vehicle_log_enabled": true,
+    "state_polling": {
+      "interval_steps": 1,
+      "environment_state": {
+        "step": true,
+        "time": true,
+        "vehicle_ids": true,
+        "vehicle_lanes": true,
+        "vehicle_lane_positions": true,
+        "vehicle_upp": true,
+        "pending_commands": true,
+        "vehicle_speeds": false,
+        "vehicle_waiting_times": false
+      },
+      "logic_module_state": {
+        "step": true,
+        "controller_type": true,
+        "light_states": true,
+        "bids": true,
+        "bids_queue": true,
+        "bids_upp": true,
+        "bids_blended": true,
+        "phase_switched": true,
+        "tau": true
+      }
+    }
   },
   "logic_modules": []
 }

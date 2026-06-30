@@ -11,6 +11,7 @@ Examples:
     python run.py configurations/demo_sumo_fixed_cycle_config.json
     python run.py configurations/demo_sumo_max_pressure_config.json
     python run.py configurations/demo_sumo_priority_pass_config.json
+    python run.py configurations/demo_sumo_priority_pass_full_state_config.json
     python run.py configurations/vienna_sumo_baseline_config.json
     python run.py configurations/vienna_sumo_fixed_cycle_config.json
     python run.py configurations/vienna_sumo_max_pressure_config.json
@@ -30,7 +31,7 @@ from evaluator import Evaluator
 
 def main() -> None:
     # default config; overridden by a positional CLI argument
-    config_file = "configurations/demo_sumo_priority_pass_config.json"
+    config_file = "configurations/demo_sumo_baseline_config.json"
     skip_evaluation = False
 
     for arg in sys.argv[1:]:
@@ -52,6 +53,10 @@ def main() -> None:
             )
             print("  - configurations/demo_sumo_max_pressure_config.json")
             print("  - configurations/demo_sumo_priority_pass_config.json")
+            print(
+                "  - configurations/demo_sumo_priority_pass_full_state_config.json"
+                " (all state fields logged — for debugging / validation)"
+            )
             print("\nAvailable Vienna pilot configs:")
             print(
                 "  - configurations/vienna_sumo_baseline_config.json (no controller — SUMO defaults)"

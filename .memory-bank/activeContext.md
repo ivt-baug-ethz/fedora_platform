@@ -1,6 +1,24 @@
 # Active Context
 
-## Current Status (2026-06-27) - Priority Pass / Max-Pressure Parity
+## Current Status (2026-06-30) — Unified State Config + Full-State Example
+
+The state-polling system is now fully unified and modular:
+
+- **No `recorder.enabled` on `Recorder` class**: orchestrator decides whether to instantiate it;
+  omitting the recorder from `components` disables all logging with zero overhead.
+- **Unified `_state_cfg`**: all components (environment + all 3 controllers) receive a flat
+  `dict[str, bool]` at startup; only fields set to `true` are cached and reported. No "base vs
+  extended" split — the config drives everything. Empty dict (`{}`) when polling is disabled.
+- **All state fields in config schema**: `environment_state` now lists all 9 fields (7 base + 2
+  TraCI); `logic_module_state` lists all 9 fields. Base fields default to `true`, TraCI/bid
+  fields default to `false` in existing configs.
+- **New example config**: `demo_sumo_priority_pass_full_state_config.json` — all fields `true`,
+  `state_polling.enabled: true`, runnable via `python run.py configurations/demo_sumo_priority_pass_full_state_config.json`.
+- **`run.py`** help text updated with the new config.
+- **`tests/test_recorder.py`**: removed 2 tests that tested recorder-level `enabled` (now
+  orchestrator responsibility); 76 tests pass; pylint 9.75/10.
+
+## Previous Status (2026-06-27) - Priority Pass / Max-Pressure Parity
 
 Fixed the main cause of Priority Pass behaving differently from Max-Pressure when priority
 is disabled. The controller bid formula was already correct: at `trade_off = 0.0`,

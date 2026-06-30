@@ -20,7 +20,7 @@ _AnyEnvironment = SumoEnvironment
 
 
 class Orchestrator:
-    """Sole orchestrator of the FEDORA platform: creates all sub-components and drives the simulation loop.
+    """Sole orchestrator of the FEDORA platform: creates all sub-components and drives the loop.
 
     Reads the full JSON configuration, instantiates Recorder, LogicModule, and Simulation,
     then injects step and apply_and_advance signals to advance the simulation one step at a time.
@@ -99,6 +99,12 @@ class Orchestrator:
         self._pending_commands: dict[str, Any] = {}
         self._pending_commands_count: int = 0
 
+        # step counter for state polling interval tracking
+        self._poll_step_counter: int = 0
+        # flags set in configure(); True when recorder is active and ≥1 state attribute is enabled
+        self._poll_environment: bool = False
+        self._poll_logic_modules: bool = False
+
         # set to True once environment_started is received; back to False on environment_stopped
         self.environment_running: bool = False
 
@@ -139,11 +145,30 @@ class Orchestrator:
             if name != "orchestrator"
         }
 
-        # build recorder with its dedicated TCP port and log directory
+        # build recorder only when logging is enabled; if disabled, remove it from components
         recorder_cfg = dict(self.configuration["recorder"])
-        recorder_cfg["host"] = self.host
-        recorder_cfg["port"] = int(communication["ports"]["recorder"])
-        self.recorder = Recorder(recorder_cfg)
+        if recorder_cfg.get("enabled", True):
+            recorder_cfg["host"] = self.host
+            recorder_cfg["port"] = int(communication["ports"]["recorder"])
+            recorder_cfg["scenario"] = str(
+                self.configuration.get("scenario", "unknown")
+            )
+            recorder_cfg["logic_module_types"] = [
+                str(m.get("type", "unknown"))
+                for m in list(self.configuration["logic_modules"])
+            ]
+            self.recorder = Recorder(recorder_cfg)
+        else:
+            self.components.pop("recorder", None)
+
+        # derive which state categories need polling from the activated attributes;
+        # polling is disabled automatically when the recorder is not running
+        polling_cfg = self.configuration["recorder"].get("state_polling", {})
+        env_state = dict(polling_cfg.get("environment_state", {}))
+        lm_state = dict(polling_cfg.get("logic_module_state", {}))
+        recorder_active = self.recorder is not None
+        self._poll_environment = recorder_active and any(env_state.values())
+        self._poll_logic_modules = recorder_active and any(lm_state.values())
 
         self._configure_logic_modules(
             communication, setup, list(self.configuration["logic_modules"])
@@ -159,6 +184,10 @@ class Orchestrator:
         env_cfg = dict(self.configuration["environment"])
         env_cfg["_scenario_path"] = str(self.configuration["scenario_path"])
         env_cfg["_logs_dir"] = str(self.configuration["recorder"]["logs_dir"])
+        env_cfg["_vehicle_log_enabled"] = bool(
+            self.configuration["recorder"].get("vehicle_log_enabled", True)
+        )
+        env_cfg["_state_cfg"] = env_state if self._poll_environment else {}
         self._configure_environment(communication, setup, env_cfg, required)
         return self
 
@@ -170,11 +199,11 @@ class Orchestrator:
             self._open_server()
             self._transition("prepare")
         self._transition("start")
-        assert self.recorder is not None
         assert self.environment is not None
 
-        # start in order: recorder first so no messages are lost, then all logic modules, then environment
-        self.recorder.start()
+        # recorder first (when present) so no messages are lost, then modules, then environment
+        if self.recorder is not None:
+            self.recorder.start()
         time.sleep(self.startup_pause_seconds)
         for module in self.logic_modules:
             module.start()
@@ -265,13 +294,16 @@ class Orchestrator:
                     f"expected key '{indexed_key}' in communication.ports"
                 )
 
-            # inject network and shared setup fields before passing to the logic module
+            # inject network, shared setup, and state reporting config before passing to the module
+            polling_cfg = self.configuration["recorder"].get("state_polling", {})
+            lm_state = dict(polling_cfg.get("logic_module_state", {}))
             cfg = dict(module_cfg)
             cfg["host"] = self.host
             cfg["port"] = int(ports[port_key])
             cfg["orchestrator"] = {"host": self.host, "port": self.port}
             cfg["random_seed"] = int(setup.get("random_seed", 42))
             cfg["traffic_lights"] = list(setup.get("traffic_lights", []))
+            cfg["state_cfg"] = lm_state if any(lm_state.values()) else {}
 
             # look up logic module class by type string (e.g. "controller_priority_pass")
             logic_module_type = str(module_cfg.get("type"))
@@ -294,9 +326,11 @@ class Orchestrator:
             env_cfg: Environment section dict (modified in-place).
             required_measurements: Lane measurement types requested by the logic module.
         """
-        # pop internal transport keys added by configure() before passing the dict to the environment
+        # pop internal transport keys before passing the dict to the environment
         scenario_path = str(env_cfg.pop("_scenario_path"))
         logs_dir = str(env_cfg.pop("_logs_dir"))
+        vehicle_log_enabled = bool(env_cfg.pop("_vehicle_log_enabled", True))
+        state_cfg = dict(env_cfg.pop("_state_cfg", {}))
         env_type = str(env_cfg.pop("type", "sumo_simulation"))
         cfg = env_cfg
 
@@ -314,6 +348,8 @@ class Orchestrator:
         cfg["settings"] = dict(cfg["settings"])
         cfg["settings"]["random_seed"] = int(setup.get("random_seed", 42))
         cfg["logs_dir"] = logs_dir
+        cfg["vehicle_log_enabled"] = vehicle_log_enabled
+        cfg["state_cfg"] = state_cfg
         cfg["lane_measurements_enabled"] = required_measurements
 
         # look up the environment class by type string (e.g. "sumo_simulation")
@@ -449,6 +485,10 @@ class Orchestrator:
             self.done_event.set()
             return
 
+        if topic == "state_report":
+            self._log_message(message)
+            return
+
         # normal routing: forward to the named target or all components if broadcast
         if target == "broadcast":
             for component in self.components:
@@ -466,6 +506,9 @@ class Orchestrator:
             message: The message to log.
         """
         if "recorder" not in self.components:
+            return
+        topics = list(self.configuration["recorder"].get("topics", []))
+        if topics and message.get("topic") not in topics:
             return
         log_message = {
             "sender": self.NAME,
@@ -495,16 +538,47 @@ class Orchestrator:
         Args:
             commands: Dict mapping traffic-light ID to the target phase signal index.
         """
-        self._forward(
-            "environment",
-            {
-                "sender": self.NAME,
-                "target": "environment",
-                "topic": "apply_and_advance",
-                "sent_at": time.time(),
-                "payload": {"commands": commands},
-            },
-        )
+        message = {
+            "sender": self.NAME,
+            "target": "environment",
+            "topic": "apply_and_advance",
+            "sent_at": time.time(),
+            "payload": {"commands": commands},
+        }
+        self._log_message(message)
+        self._forward("environment", message)
+        self._poll_component_state()
+
+    def _poll_component_state(self) -> None:
+        """Query components whose state attributes are enabled and forward reports to recorder.
+
+        Called after each apply_and_advance. Components respond asynchronously with
+        state_report messages, which are routed by _route() to the recorder.
+        Polling is automatically active when the recorder is running and at least one
+        state attribute is enabled in the recorder configuration.
+        """
+        if not self._poll_environment and not self._poll_logic_modules:
+            return
+
+        polling_cfg = self.configuration["recorder"].get("state_polling", {})
+        self._poll_step_counter += 1
+        interval = int(polling_cfg.get("interval_steps", 1))
+        if self._poll_step_counter % interval != 0:
+            return
+
+        request_base: dict[str, Any] = {
+            "sender": self.NAME,
+            "topic": "get_state",
+            "sent_at": time.time(),
+            "payload": {},
+        }
+
+        if self._poll_environment and "environment" in self.components:
+            self._forward("environment", dict(request_base, target="environment"))
+
+        if self._poll_logic_modules:
+            for module_name in self._logic_module_names:
+                self._forward(module_name, dict(request_base, target=module_name))
 
     def _forward(self, target: str, message: dict[str, Any]) -> None:
         """Send a message to a target component over its persistent TCP connection.

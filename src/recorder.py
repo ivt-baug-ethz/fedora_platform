@@ -70,6 +70,10 @@ class Recorder:
         self.log_path: Path = Path(".")
         self.log_file: TextIO | None = None
 
+        # logging filter settings (populated in configure())
+        self.topics: set[str] = set()
+        self.vehicle_log_enabled: bool = True
+
         # TCP server and thread control
         self.server_socket: socket.socket | None = None
         self.server_thread: threading.Thread | None = None
@@ -84,6 +88,12 @@ class Recorder:
             self, for method chaining.
         """
         self._transition("configure")
+
+        # read logging control settings
+        self.topics = set(self.configuration.get("topics", []))
+        self.vehicle_log_enabled = bool(
+            self.configuration.get("vehicle_log_enabled", True)
+        )
 
         # read TCP endpoint from config
         self.host = str(self.configuration.get("host", "127.0.0.1"))
@@ -113,6 +123,7 @@ class Recorder:
         if self.state == self.STATE_CONFIGURED:
             # open log file in append mode so previous runs are preserved
             self.log_file = self.log_path.open("a", encoding="utf-8")
+            self._write_run_meta()
             self._open_server()
             self._transition("prepare")
 
@@ -210,12 +221,33 @@ class Recorder:
                     if line:
                         self._record(json.loads(line))
 
+    def _write_run_meta(self) -> None:
+        """Write a run_meta header record as the first line of a new run."""
+        meta: dict[str, Any] = {
+            "type": "run_meta",
+            "scenario": self.configuration.get("scenario", "unknown"),
+            "logic_module_types": list(
+                self.configuration.get("logic_module_types", [])
+            ),
+            "logged_topics": sorted(self.topics) if self.topics else [],
+            "vehicle_log_enabled": self.vehicle_log_enabled,
+        }
+        with self.write_lock:
+            if self.log_file is not None:
+                self.log_file.write(json.dumps(meta, sort_keys=True) + "\n")
+                self.log_file.flush()
+
     def _record(self, message: dict[str, Any]) -> None:
         """Write a timestamped message record to the log file.
 
         Args:
-            message: Decoded JSON message dict to persist.
+            message: Decoded JSON message dict to persist. Messages arrive wrapped in the
+                orchestrator envelope; the topic filter inspects the inner payload topic.
         """
+        inner_topic = message.get("payload", {}).get("topic", "")
+        if self.topics and inner_topic not in self.topics:
+            return
+
         # wrap the original message with a wall-clock log timestamp
         record = {"logged_at": time.time(), "message": message}
         with self.write_lock:

@@ -7,6 +7,7 @@ import random
 import socket
 import threading
 import time
+import warnings
 from typing import Any
 
 
@@ -29,6 +30,18 @@ class PriorityPassController:
     AUCTION_CHANGING_SIGNAL = "changing_signal"
     AUCTION_WAIT_MIN_GREEN = "wait_min_green_time"
     AUCTION_WAIT_NEXT = "wait_for_next_auction"
+    SUPPORTED_STATE_KEYS: frozenset[str] = frozenset(
+        {
+            "step",
+            "controller_type",
+            "light_states",
+            "bids_queue",
+            "bids_upp",
+            "bids_blended",
+            "phase_switched",
+            "tau",
+        }
+    )
 
     STATES = (
         STATE_CREATED,
@@ -90,6 +103,15 @@ class PriorityPassController:
         self.light_states: dict[str, dict[str, Any]] = {}
         self.random = random.Random()
 
+        # state reporting config and per-step cache for state_report responses
+        self._state_cfg: dict[str, bool] = {}
+        self._last_step: int = 0
+        self._last_queue_bids: dict[str, list[float]] = {}
+        self._last_upp_bids: dict[str, list[float]] = {}
+        self._last_blended_bids: dict[str, list[float]] = {}
+        self._last_phase_switched: dict[str, bool] = {}
+        self._tau: float = 0.0
+
         # TCP server state
         self.server_socket: socket.socket | None = None
         self.server_thread: threading.Thread | None = None
@@ -132,6 +154,18 @@ class PriorityPassController:
                 "priority_pass", self.configuration.get("control", {})
             )
         )
+        self._state_cfg = dict(self.configuration.get("state_cfg", {}))
+        unsupported = [
+            k
+            for k, v in self._state_cfg.items()
+            if v and k not in self.SUPPORTED_STATE_KEYS
+        ]
+        if unsupported:
+            warnings.warn(
+                f"{self.__class__.__name__}: state_cfg has unsupported keys {unsupported}",
+                UserWarning,
+                stacklevel=2,
+            )
 
         # seed random for deterministic tie-breaking across runs
         self.random.seed(int(self.configuration.get("random_seed", 42)))
@@ -281,6 +315,7 @@ class PriorityPassController:
         """
         if message.get("topic") == "traffic_state":
             payload = dict(message.get("payload", {}))
+            self._last_step = int(payload.get("step", self._last_step))
             commands = self._build_commands(payload)
             self._send_message(
                 "simulation",
@@ -293,6 +328,26 @@ class PriorityPassController:
                     "controller_states": self.light_states,
                 },
             )
+        elif message.get("topic") == "get_state":
+            cfg = self._state_cfg
+            state: dict[str, Any] = {}
+            if cfg.get("step", False):
+                state["step"] = self._last_step
+            if cfg.get("controller_type", False):
+                state["controller_type"] = "controller_priority_pass"
+            if cfg.get("light_states", False):
+                state["light_states"] = dict(self.light_states)
+            if cfg.get("bids_queue", False):
+                state["bids_queue"] = dict(self._last_queue_bids)
+            if cfg.get("bids_upp", False):
+                state["bids_upp"] = dict(self._last_upp_bids)
+            if cfg.get("bids_blended", False):
+                state["bids_blended"] = dict(self._last_blended_bids)
+            if cfg.get("phase_switched", False):
+                state["phase_switched"] = dict(self._last_phase_switched)
+            if cfg.get("tau", False):
+                state["tau"] = self._tau
+            self._send_message("orchestrator", "state_report", state)
         elif message.get("topic") == "shutdown":
             self.stop()
 
@@ -313,16 +368,23 @@ class PriorityPassController:
             commands[traffic_light] = self._step_light(
                 self.light_states[traffic_light],
                 dict(metrics),
+                traffic_light,
             )
 
         return commands
 
-    def _step_light(self, light_state: dict[str, Any], metrics: dict[str, Any]) -> int:
+    def _step_light(
+        self,
+        light_state: dict[str, Any],
+        metrics: dict[str, Any],
+        traffic_light: str = "",
+    ) -> int:
         """Advance one time step for a single traffic light and return its phase signal.
 
         Args:
             light_state: Mutable state dict for one traffic light.
             metrics: Current measurement data for this traffic light.
+            traffic_light: Traffic light ID for bid caching.
         Returns:
             Phase signal index to send to SUMO.
         """
@@ -335,7 +397,7 @@ class PriorityPassController:
         # dispatch to the appropriate sub-handler based on auction state
         auction_state = light_state["auction_state"]
         if auction_state == self.AUCTION_READY:
-            self._step_ready_for_auction(light_state, metrics)
+            self._step_ready_for_auction(light_state, metrics, traffic_light)
         elif auction_state == self.AUCTION_CHANGING_SIGNAL:
             self._step_changing_signal(light_state)
         elif auction_state == self.AUCTION_WAIT_MIN_GREEN:
@@ -348,12 +410,14 @@ class PriorityPassController:
         self,
         light_state: dict[str, Any],
         metrics: dict[str, Any],
+        traffic_light: str = "",
     ) -> None:
         """Run the auction to decide whether to keep or switch the current phase.
 
         Args:
             light_state: Mutable state dict for one traffic light.
             metrics: Current measurement data for this traffic light.
+            traffic_light: Traffic light ID, used to update the last-bid cache.
         """
         light_state["current_phase_timer"] += 1
         bids = self._get_priority_pass_bids(metrics)
@@ -364,7 +428,36 @@ class PriorityPassController:
             bids[current_phase] = -10000.0
 
         winner_phase = self._determine_auction_winner(bids)
-        if winner_phase == current_phase:
+        phase_switched = winner_phase != current_phase
+        if traffic_light:
+            cfg = self._state_cfg
+            if cfg.get("bids_queue", False) or cfg.get("bids_blended", False):
+                strategy = str(
+                    self.control.get("bidding_strategy", "phase_queue_length")
+                )
+                weighted_strategies = {
+                    "phase_weighted_vehicle_position",
+                    "phase_weighted_queue_length",
+                    "weighted_queue_length",
+                }
+                weighted = strategy in weighted_strategies
+                queue_key = "weighted_queue_lengths" if weighted else "queue_lengths"
+                if cfg.get("bids_queue", False):
+                    self._last_queue_bids[traffic_light] = [
+                        float(v) for v in metrics.get(queue_key, [])
+                    ]
+            if cfg.get("bids_upp", False):
+                self._last_upp_bids[traffic_light] = [
+                    float(v) for v in metrics.get("upp_bids", [])
+                ]
+            if cfg.get("bids_blended", False):
+                self._last_blended_bids[traffic_light] = list(bids)
+            if cfg.get("phase_switched", False):
+                self._last_phase_switched[traffic_light] = phase_switched
+            if cfg.get("tau", False):
+                self._tau = float(self.control.get("trade_off", 0.0))
+
+        if not phase_switched:
             self._auction_transition(light_state, "same_phase")
             light_state["timer"] = int(self.control["auction_suspend_duration"]) - 1
         else:
@@ -430,7 +523,6 @@ class PriorityPassController:
 
         # all strategies with "weighted" in their name use position-weighted queue lengths
         weighted_strategies = {
-            "phase_weigthed_vehicle_position",
             "phase_weighted_vehicle_position",
             "phase_weighted_queue_length",
             "weighted_queue_length",

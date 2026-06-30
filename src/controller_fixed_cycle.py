@@ -6,11 +6,12 @@ import json
 import socket
 import threading
 import time
+import warnings
 from typing import Any
 
 
 class FixedCycleController:
-    """Configurable fixed-cycle controller: cycles traffic lights through user-defined phase durations.
+    """Fixed-cycle controller: cycles traffic lights through user-defined phase durations.
 
     Each intersection runs an independent schedule with configurable green-phase durations,
     transition (amber) duration, and an optional per-intersection startup time offset. Unlike
@@ -29,6 +30,13 @@ class FixedCycleController:
     CYCLE_DELAY = "delay"
     CYCLE_GREEN = "green"
     CYCLE_TRANSITION = "transition"
+    SUPPORTED_STATE_KEYS: frozenset[str] = frozenset(
+        {
+            "step",
+            "controller_type",
+            "light_states",
+        }
+    )
 
     STATES = (
         STATE_CREATED,
@@ -85,6 +93,10 @@ class FixedCycleController:
         # per-light cycle state machines, keyed by traffic light ID
         self.light_states: dict[str, dict[str, Any]] = {}
 
+        # last step counter and state reporting config for state_report responses
+        self._last_step: int = 0
+        self._state_cfg: dict[str, bool] = {}
+
         # TCP server state
         self.server_socket: socket.socket | None = None
         self.server_thread: threading.Thread | None = None
@@ -116,6 +128,18 @@ class FixedCycleController:
         self.orchestrator = (str(orchestrator["host"]), int(orchestrator["port"]))
         self.traffic_lights = list(self.configuration.get("traffic_lights", []))
         self.control = dict(self.configuration.get("fixed_cycle", {}))
+        self._state_cfg = dict(self.configuration.get("state_cfg", {}))
+        unsupported = [
+            k
+            for k, v in self._state_cfg.items()
+            if v and k not in self.SUPPORTED_STATE_KEYS
+        ]
+        if unsupported:
+            warnings.warn(
+                f"{self.__class__.__name__}: state_cfg has unsupported keys {unsupported}",
+                UserWarning,
+                stacklevel=2,
+            )
 
         # initialise a cycle state machine for each known traffic light
         self.light_states = {
@@ -275,6 +299,7 @@ class FixedCycleController:
         """
         if message.get("topic") == "traffic_state":
             payload = dict(message.get("payload", {}))
+            self._last_step = int(payload.get("step", self._last_step))
             commands = self._build_commands(payload)
             self._send_message(
                 "simulation",
@@ -287,6 +312,16 @@ class FixedCycleController:
                     "controller_states": self.light_states,
                 },
             )
+        elif message.get("topic") == "get_state":
+            cfg = self._state_cfg
+            state: dict[str, Any] = {}
+            if cfg.get("step", False):
+                state["step"] = self._last_step
+            if cfg.get("controller_type", False):
+                state["controller_type"] = "controller_fixed_cycle"
+            if cfg.get("light_states", False):
+                state["light_states"] = dict(self.light_states)
+            self._send_message("orchestrator", "state_report", state)
         elif message.get("topic") == "shutdown":
             self.stop()
 

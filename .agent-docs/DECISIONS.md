@@ -345,3 +345,69 @@ The demo and Vienna Priority Pass configs now keep the same auction timing field
 - Setting `trade_off = 0.0` should reproduce Max-Pressure behaviour for the same SUMO random seed.
 - Increasing `trade_off` isolates the effect of UPP prioritisation instead of mixing it with changed auction timings.
 - Future config changes must preserve timing parity unless intentionally creating a separate experiment variant.
+
+---
+
+## ADR 2026-06-30: Configurable Recording and State Polling
+
+### Status
+
+Accepted.
+
+### Context
+
+The recorder previously logged every inter-component message unconditionally, producing large
+logs at ~7 messages per step regardless of what the researcher needed. The vehicle log
+(`vehicle_log.jsonl`) could not be disabled independently, which caused the `Evaluator` to fail
+if it did not exist. There was also no mechanism to capture extended per-step simulation state
+(vehicle speeds, waiting times) without changing source code.
+
+### Decision
+
+**Topic-filtered recording:** Each configuration's `recorder` section now supports:
+- `enabled` (bool, default `true`) — `false` skips all file creation and TCP binding; zero overhead.
+- `topics` (list, default `[]`) — allowlist for inner payload topics to record; empty = log all.
+- `vehicle_log_enabled` (bool, default `true`) — controls whether `vehicle_log.jsonl` is written.
+
+**`run_meta` headers:** Both log files now begin with a `{"type": "run_meta", ...}` JSON line that
+records the scenario, logic module types, and active filter settings. The `Evaluator` skips
+`run_meta` lines when loading the vehicle log (`if event.get("type") == "run_meta": continue`).
+
+**Orchestrator-mediated state polling:** After every `apply_and_advance` cycle the Orchestrator
+optionally sends `get_state` requests to configured components (controlled by
+`recorder.state_polling.enabled`, `interval_steps`, `components`). Components respond via
+`state_report`. The Orchestrator intercepts `state_report` in `_route()` and forwards it to the
+recorder — the recorder remains purely passive and only talks to the Orchestrator.
+
+**Lazy extended SUMO state:** The environment caches vehicle speeds and waiting times in
+`_run_step()` (simulation thread, TraCI-safe) only when `environment_extended_state.*` flags are
+`true` in the `get_state` request payload. These cached values are served from `_send_state_report()`
+without additional TraCI calls from the TCP handler thread.
+
+**Controller state snapshots:** All three controllers store their last bid vectors and
+`phase_switched` outcome as instance variables after each auction, and expose them via `get_state`
+→ `state_report`.
+
+Structural changes:
+- `recorder.py`: `enabled`, `topics`, `vehicle_log_enabled` read in `configure()`; `start()` guarded;
+  `_write_run_meta()` writes header; `_record()` filters on inner `payload.topic`.
+- `orchestrator.py`: enriches `recorder_cfg` with `scenario` and `logic_module_types`; `_log_message()`
+  pre-filters by topic; `_send_apply_and_advance()` logs the outgoing message; new
+  `_poll_component_state()` method; `state_report` intercepted in `_route()`.
+- `environment_sumo.py`: `vehicle_log_enabled` guard; vehicle log `run_meta` header; `get_state`
+  handler with lazy TraCI caching.
+- `controller_fixed_cycle.py`, `controller_max_pressure.py`, `controller_priority_pass.py`: store
+  last step/bids/phase_switched; `get_state` handler.
+- `evaluator.py`: skip `run_meta` lines in `load_vehicle_log()`.
+- All 8 configuration JSON files: new `recorder` fields with safe defaults (all off).
+
+### Consequences
+
+- Recorder can be fully disabled for lightweight benchmark runs with zero log overhead.
+- Topic allowlist enables targeted capture (e.g., only `traffic_state` and `state_report`) without
+  modifying source code.
+- `vehicle_log_enabled: false` is a valid configuration but disables the `Evaluator` — document this.
+- The Orchestrator-as-sole-orchestrator invariant is preserved: the recorder never initiates
+  connections to other components.
+- State polling adds latency per step proportional to the number of polled components; use
+  `interval_steps > 1` for long runs where dense sampling is unnecessary.

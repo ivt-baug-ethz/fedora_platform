@@ -49,6 +49,8 @@ class Evaluator:
             for line in f:
                 if line.strip():
                     event = json.loads(line)
+                    if event.get("type") == "run_meta":
+                        continue
                     vehicle_id = event["vehicle_id"]
 
                     # create an entry on first encounter; subsequent events fill the timestamps

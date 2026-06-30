@@ -12,6 +12,7 @@ The sole orchestrator of the platform. It reads the full JSON configuration, cre
 - Merge `logic_command` responses and forward the combined command to the Environment
 - Mirror all traffic to the Recorder
 - Query each Logic Module's measurement requirements and pass them to the Environment
+- After each step, optionally poll components for internal state (`get_state` → `state_report`) and forward the reports to the Recorder — activated automatically when at least one state attribute is enabled in the recorder config
 
 ## Environment: SUMO (`src/environment_sumo.py`)
 
@@ -55,12 +56,20 @@ Priority Pass intentionally shares the same auction FSM timing parameters as Max
 
 ## Recorder (`src/recorder.py`)
 
-Listens on a dedicated TCP port for message copies from the Orchestrator. Writes all inter-component communication to log files for post-run analysis.
+Listens on a dedicated TCP port for message copies forwarded by the Orchestrator. Writes inter-component communication and (optionally) per-step component state snapshots to log files for post-run analysis.
+
+The Recorder is only instantiated when a `"recorder"` port is present in `communication.ports`. If the port is omitted, no log files are created and the simulation runs at minimum overhead.
 
 **Output:**
 
-- `logs/{scenario}_{logic_module}/communication_log.txt` — all messages
-- `logs/{scenario}_{logic_module}/vehicle_log.jsonl` — vehicle arrival/departure events
+- `logs/{run_label}/communication_log.txt` — inter-component messages (first line is always a `run_meta` record describing the run)
+- `logs/{run_label}/vehicle_log.jsonl` — vehicle arrival/departure events (when `vehicle_log_enabled: true`)
+
+**Configurable logging:**
+
+- **Topic filter** (`topics`): an allowlist of message topics to record. Leave empty to capture all traffic; set to a non-empty list (e.g. `["traffic_state", "logic_command"]`) to reduce log volume.
+- **Vehicle log** (`vehicle_log_enabled`): disabling this skips `vehicle_log.jsonl` and suppresses the post-run Evaluator.
+- **State polling**: when the Orchestrator polls component state, the resulting `state_report` messages are forwarded to the Recorder and subject to the same topic filter. Enable specific state fields in the `recorder.state_polling` config to capture them — no changes to recorder configuration are needed beyond setting the desired attributes to `true`.
 
 ## Evaluator (`src/evaluator.py`)
 

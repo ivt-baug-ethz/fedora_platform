@@ -7,11 +7,12 @@ import random
 import socket
 import threading
 import time
+import warnings
 from typing import Any
 
 
 class MaxPressureController:
-    """Assign green phases by auction, granting right-of-way to the direction with the highest queue length.
+    """Assign green phases by auction, granting right-of-way to the highest-queue-length direction.
 
     Uses a per-intersection auction to select the winning phase each cycle, subject to
     minimum and maximum green time constraints.
@@ -29,6 +30,15 @@ class MaxPressureController:
     AUCTION_CHANGING_SIGNAL = "changing_signal"
     AUCTION_WAIT_MIN_GREEN = "wait_min_green_time"
     AUCTION_WAIT_NEXT = "wait_for_next_auction"
+    SUPPORTED_STATE_KEYS: frozenset[str] = frozenset(
+        {
+            "step",
+            "controller_type",
+            "light_states",
+            "bids",
+            "phase_switched",
+        }
+    )
 
     STATES = (
         STATE_CREATED,
@@ -90,6 +100,12 @@ class MaxPressureController:
         self.light_states: dict[str, dict[str, Any]] = {}
         self.random = random.Random()
 
+        # state reporting config and per-step cache for state_report responses
+        self._state_cfg: dict[str, bool] = {}
+        self._last_step: int = 0
+        self._last_bids: dict[str, list[float]] = {}
+        self._last_phase_switched: dict[str, bool] = {}
+
         # TCP server state
         self.server_socket: socket.socket | None = None
         self.server_thread: threading.Thread | None = None
@@ -128,6 +144,18 @@ class MaxPressureController:
         self.orchestrator = (str(orchestrator["host"]), int(orchestrator["port"]))
         self.traffic_lights = list(self.configuration.get("traffic_lights", []))
         self.control = dict(self.configuration.get("max_pressure", {}))
+        self._state_cfg = dict(self.configuration.get("state_cfg", {}))
+        unsupported = [
+            k
+            for k, v in self._state_cfg.items()
+            if v and k not in self.SUPPORTED_STATE_KEYS
+        ]
+        if unsupported:
+            warnings.warn(
+                f"{self.__class__.__name__}: state_cfg has unsupported keys {unsupported}",
+                UserWarning,
+                stacklevel=2,
+            )
 
         # seed random for deterministic tie-breaking across runs
         self.random.seed(int(self.configuration.get("random_seed", 42)))
@@ -284,6 +312,7 @@ class MaxPressureController:
         """
         if message.get("topic") == "traffic_state":
             payload = dict(message.get("payload", {}))
+            self._last_step = int(payload.get("step", self._last_step))
             commands = self._build_commands(payload)
             self._send_message(
                 "simulation",
@@ -296,6 +325,21 @@ class MaxPressureController:
                     "controller_states": self.light_states,
                 },
             )
+
+        elif message.get("topic") == "get_state":
+            cfg = self._state_cfg
+            state: dict[str, Any] = {}
+            if cfg.get("step", False):
+                state["step"] = self._last_step
+            if cfg.get("controller_type", False):
+                state["controller_type"] = "controller_max_pressure"
+            if cfg.get("light_states", False):
+                state["light_states"] = dict(self.light_states)
+            if cfg.get("bids", False):
+                state["bids"] = dict(self._last_bids)
+            if cfg.get("phase_switched", False):
+                state["phase_switched"] = dict(self._last_phase_switched)
+            self._send_message("orchestrator", "state_report", state)
 
         elif message.get("topic") == "shutdown":
             self.stop()
@@ -317,16 +361,23 @@ class MaxPressureController:
             commands[traffic_light] = self._step_light(
                 self.light_states[traffic_light],
                 dict(metrics),
+                traffic_light,
             )
 
         return commands
 
-    def _step_light(self, light_state: dict[str, Any], metrics: dict[str, Any]) -> int:
+    def _step_light(
+        self,
+        light_state: dict[str, Any],
+        metrics: dict[str, Any],
+        traffic_light: str = "",
+    ) -> int:
         """Advance one time step for a single traffic light and return its phase signal.
 
         Args:
             light_state: Mutable state dict for one traffic light.
             metrics: Current measurement data for this traffic light.
+            traffic_light: Traffic light ID for bid caching.
         Returns:
             Phase signal index to send to SUMO.
         """
@@ -339,7 +390,7 @@ class MaxPressureController:
         # dispatch to the appropriate sub-handler based on auction state
         auction_state = light_state["auction_state"]
         if auction_state == self.AUCTION_READY:
-            self._step_ready_for_auction(light_state, metrics)
+            self._step_ready_for_auction(light_state, metrics, traffic_light)
         elif auction_state == self.AUCTION_CHANGING_SIGNAL:
             self._step_changing_signal(light_state)
         elif auction_state == self.AUCTION_WAIT_MIN_GREEN:
@@ -352,12 +403,14 @@ class MaxPressureController:
         self,
         light_state: dict[str, Any],
         metrics: dict[str, Any],
+        traffic_light: str = "",
     ) -> None:
         """Run the auction to decide whether to keep or switch the current phase.
 
         Args:
             light_state: Mutable state dict for one traffic light.
             metrics: Current measurement data for this traffic light.
+            traffic_light: Traffic light ID, used to update the last-bid cache.
         """
         light_state["current_phase_timer"] += 1
         bids = self._get_phase_bids(metrics)
@@ -368,7 +421,14 @@ class MaxPressureController:
             bids[current_phase] = -10000.0
 
         winner_phase = self._determine_auction_winner(bids)
-        if winner_phase == current_phase:
+        phase_switched = winner_phase != current_phase
+        if traffic_light:
+            if self._state_cfg.get("bids", False):
+                self._last_bids[traffic_light] = list(bids)
+            if self._state_cfg.get("phase_switched", False):
+                self._last_phase_switched[traffic_light] = phase_switched
+
+        if not phase_switched:
             self._auction_transition(light_state, "same_phase")
             light_state["timer"] = int(self.control["auction_suspend_duration"]) - 1
         else:
@@ -429,7 +489,6 @@ class MaxPressureController:
 
         # all strategies with "weighted" in their name use position-weighted queue lengths
         weighted_strategies = {
-            "phase_weigthed_vehicle_position",
             "phase_weighted_vehicle_position",
             "phase_weighted_queue_length",
             "weighted_queue_length",
