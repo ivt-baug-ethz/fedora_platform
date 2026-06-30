@@ -14,9 +14,22 @@ The sole orchestrator of the platform. It reads the full JSON configuration, cre
 - Query each Logic Module's measurement requirements and pass them to the Environment
 - After each step, optionally poll components for internal state (`get_state` → `state_report`) and forward the reports to the Recorder — activated automatically when at least one state attribute is enabled in the recorder config
 
-## Environment: SUMO (`src/environment_sumo.py`)
+## Environment Layer
 
-Implements the `sumo` environment type. Manages the SUMO/TraCI connection lifecycle and exposes traffic state over TCP.
+The environment layer is the **pluggable execution backend** of the platform. It produces state observations (`traffic_state`) and applies the merged commands received via `apply_and_advance`. Any implementation that respects this two-message contract can serve as the environment — the Orchestrator, Logic Modules, and Recorder are fully unaware of what is running behind it.
+
+Concrete backends can include:
+
+- **Microsimulations** (e.g. SUMO/TraCI, VISSIM, Aimsun) — run in headless mode for batch experiments or with a GUI for interactive inspection
+- **Mesoscopic or macroscopic models** — suitable for network-wide or long-horizon studies where per-vehicle fidelity is not required
+- **Hardware-in-the-loop testbeds** — where physical signal controllers or sensor arrays feed real measurements into the pipeline
+- **Live pilot deployment sites** — field deployments where a thin field interface translates sensor readings and command outputs into the platform's message format
+
+The only requirement is that the environment can provide the state fields requested by the active Logic Modules (declared via `get_required_measurements()`) and can accept the command type returned by those modules.
+
+### Environment for Demonstrator: SUMO (`src/environment_sumo.py`)
+
+Implements the `"sumo"` environment type using SUMO/TraCI. Manages the SUMO process lifecycle, the TraCI connection, and vehicle spawning via configurable demand models.
 
 **Responsibilities:**
 

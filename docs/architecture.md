@@ -4,13 +4,21 @@
 
 FEDORA separates five core responsibilities across independent components connected by a TCP message bus:
 
-| Component | Role |
-|---|---|
-| **Environment** | Execution backend (simulation or real deployment) |
-| **Logic Module(s)** | Decision-making (one or more, pluggable) |
-| **Orchestrator** | Sole controller — creates all sub-components, drives the step loop |
-| **Recorder** | Logs all inter-component messages |
-| **Storage** | Persists records to files or databases |
+| Component           | Role                                                                                                                                                        |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Environment**     | Pluggable execution backend — any microsimulation or real-world deployment site that provides the state information required by the connected logic modules |
+| **Logic Module(s)** | Decision-making (one or more, pluggable) — signal controllers, demand models, pricing engines, etc.                                                         |
+| **Orchestrator**    | Sole controller — creates all sub-components, drives the step loop                                                                                          |
+| **Recorder**        | Logs all inter-component messages                                                                                                                           |
+| **Storage**         | Persists records to files or databases                                                                                                                      |
+
+### Environment and Logic Module layers
+
+The framework is built around two fully decoupled, independently pluggable layers:
+
+**Environment layer** — the execution backend that produces state observations and applies commands. This can be any implementation that speaks the `step` / `apply_and_advance` message contract: a microscopic traffic simulator (e.g. SUMO/TraCI, as used in the provided demonstrator), a mesoscopic or macroscopic model, a hardware-in-the-loop testbed, or a live pilot deployment site connected via a field interface. Switching the environment requires only a new environment component — the Orchestrator, Logic Modules, and Recorder remain largely unchanged.
+
+**Logic module layer** — one or more decision-making components, each receiving the same `traffic_state` observation and returning a `logic_command`. Modules are composable: multiple can run simultaneously, and the Orchestrator merges their outputs before forwarding to the environment. A module can implement any decision logic that maps observations to commands; it has no knowledge of what environment is running or how many other modules are active.
 
 ## Component Lifecycle (FSM)
 
@@ -106,34 +114,34 @@ All messages use a JSON-line envelope over TCP:
   "topic": "traffic_state",
   "payload": {
     "step": 1234,
-    "queue_lengths": {"J25": 5, "J26": 12},
-    "signal_state": {"J25": "green", "J26": "red"}
+    "queue_lengths": { "J25": 5, "J26": 12 },
+    "signal_state": { "J25": "green", "J26": "red" }
   }
 }
 ```
 
 ### Message Topics
 
-| Topic | Direction | Description |
-|---|---|---|
-| `traffic_state` | Environment → Logic Module(s) via Orchestrator | Current environment state observations |
-| `logic_command` | Logic Module → Orchestrator | Decision output; `payload.type` identifies command kind |
-| `step` | Orchestrator → Environment | Begin next state-collection iteration |
-| `apply_and_advance` | Orchestrator → Environment | Apply merged commands and advance one step |
-| `get_state` | Orchestrator → Environment / Logic Module(s) | Request a snapshot of internal state (sent when state polling is active) |
-| `state_report` | Environment / Logic Module(s) → Orchestrator | Response to `get_state`; contains only the fields enabled in `state_polling` config |
-| `environment_started` / `environment_stopped` | Environment → Orchestrator | Lifecycle signals |
-| `communication` | Orchestrator → Recorder | Mirror of all routed messages (including `state_report` responses) |
+| Topic                                         | Direction                                      | Description                                                                         |
+| --------------------------------------------- | ---------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `traffic_state`                               | Environment → Logic Module(s) via Orchestrator | Current environment state observations                                              |
+| `logic_command`                               | Logic Module → Orchestrator                    | Decision output; `payload.type` identifies command kind                             |
+| `step`                                        | Orchestrator → Environment                     | Begin next state-collection iteration                                               |
+| `apply_and_advance`                           | Orchestrator → Environment                     | Apply merged commands and advance one step                                          |
+| `get_state`                                   | Orchestrator → Environment / Logic Module(s)   | Request a snapshot of internal state (sent when state polling is active)            |
+| `state_report`                                | Environment / Logic Module(s) → Orchestrator   | Response to `get_state`; contains only the fields enabled in `state_polling` config |
+| `environment_started` / `environment_stopped` | Environment → Orchestrator                     | Lifecycle signals                                                                   |
+| `communication`                               | Orchestrator → Recorder                        | Mirror of all routed messages (including `state_report` responses)                  |
 
 ## Communication Layer
 
 All communication is JSON-line over persistent TCP connections on localhost. Default port assignments:
 
-| Component | Default address |
-|---|---|
+| Component    | Default address   |
+| ------------ | ----------------- |
 | Orchestrator | `127.0.0.1:51000` |
-| Environment (SUMO) | `127.0.0.1:51001` |
+| Environment  | `127.0.0.1:51001` |
 | Logic Module | `127.0.0.1:51002` |
-| Recorder | `127.0.0.1:51003` |
+| Recorder     | `127.0.0.1:51003` |
 
 Connections are persistent (one socket per target, reused for all messages). Receivers parse line-by-line; each newline-terminated JSON string is one message.
