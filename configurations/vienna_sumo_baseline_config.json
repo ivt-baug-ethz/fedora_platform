@@ -82,17 +82,7 @@
         "vehicle_speeds": false,
         "vehicle_waiting_times": false
       },
-      "logic_module_state": {
-        "step": true,
-        "controller_type": true,
-        "light_states": true,
-        "bids": true,
-        "bids_queue": true,
-        "bids_upp": true,
-        "bids_blended": true,
-        "phase_switched": true,
-        "tau": true
-      }
+      "logic_module_state": {}
     }
   },
   "logic_modules": []

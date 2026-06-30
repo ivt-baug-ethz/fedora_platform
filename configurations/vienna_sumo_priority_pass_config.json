@@ -93,7 +93,6 @@
         "step": true,
         "controller_type": true,
         "light_states": true,
-        "bids": true,
         "bids_queue": true,
         "bids_upp": true,
         "bids_blended": true,

@@ -88,11 +88,7 @@
         "controller_type": true,
         "light_states": true,
         "bids": true,
-        "bids_queue": true,
-        "bids_upp": true,
-        "bids_blended": true,
-        "phase_switched": true,
-        "tau": true
+        "phase_switched": true
       }
     }
   },
