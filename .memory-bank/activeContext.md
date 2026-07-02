@@ -1,8 +1,8 @@
 # Active Context
 
-## Current Status (2026-07-02) — Edge Length Bugfix, Generic Environment Wording, Delay Metric Removal
+## Current Status (2026-07-02) — Edge Length Bugfix, Generic Environment Wording, Delay Metric Removal, post_processing/ Move, Vehicle Count Comparison Script
 
-Three follow-up fixes on top of the evaluation extension:
+Five follow-up changes on top of the evaluation extension:
 
 - **Fixed startup crash**: `_open_sumo()` called `traci.edge.getLength()`, which does not exist
   on TraCI's `EdgeDomain`. Edge lengths are now derived from the already-cached `lane_lengths`
@@ -18,6 +18,23 @@ Three follow-up fixes on top of the evaluation extension:
   trip was a valid free-flow proxy for every vehicle, which breaks when vehicles take routes of
   different lengths. Removed from `ALL_METRICS`, `MetricsComputer`, `Evaluator._print_summary`,
   all 9 config files, tests, and all docs. See ADR 2026-07-02 in `DECISIONS.md`.
+- **Moved `post_processing/` under `src/`**: now `src/post_processing/priority_pass_analysis.py`
+  (`git mv`, import path unchanged because the editable install puts `src/` on `sys.path`
+  directly). Added a `main()` CLI entry point: `python src/post_processing/priority_pass_analysis.py
+  CONFIG_FILE` derives `logs_dir`/`output_dir` from the scenario config the same way `run.py`
+  does. Library usage (`PriorityPassAnalysis(logs_dir, output_dir).run()`) is unchanged.
+  **Output directory**: writes into `results/{scenario}/{logic_module}/` directly — the same
+  directory the standard `Evaluator` uses — rather than a separate `pp_analysis/` subdirectory;
+  all filenames are `pp_`-prefixed (`pp_analysis_stats.json`, `pp_travel_time_distribution.png`,
+  etc.) so nothing collides with the standard evaluation output.
+- **New `src/post_processing/vehicle_count_comparison.py`**: accepts any number of scenario
+  configs (e.g. baseline, fixed-cycle, max-pressure, priority-pass), reuses `VehicleLogLoader`
+  to load each one's vehicle records, and overlays their cumulative vehicle count on one plot
+  (`results/{scenario}/vehicle_counts_comparison.png`). Missing logs are skipped with a printed
+  notice instead of failing. A controller is split into prioritized/non-prioritized series only
+  if its records actually contain a non-zero `priority` value (data-driven, not keyed off the
+  controller type). See ADR 2026-07-02 ("Add Cross-Controller Vehicle Count Comparison Script")
+  in `DECISIONS.md`.
 
 ## Previous Status (2026-07-01) — Evaluation Extension: Standard Metrics Package
 

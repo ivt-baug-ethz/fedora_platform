@@ -122,16 +122,25 @@ All outputs are written to `results/{scenario}/{logic_module_type}/`:
 ### Controller-Specific Analysis
 
 Some analyses are specific to a particular controller and are not part of the standard
-evaluation pipeline. These live in the `post_processing/` directory at the repository root and
-are run manually after collecting logs.
+evaluation pipeline. These live in the `src/post_processing/` package and are run manually
+after collecting logs.
 
 **Available post-processing scripts:**
 
 | Script | Controller | Description |
 |---|---|---|
-| `post_processing/priority_pass_analysis.py` | Priority Pass | Priority vs. regular vehicle comparison (travel time, counts, averages per group) |
+| `src/post_processing/priority_pass_analysis.py` | Priority Pass | Priority vs. regular vehicle comparison (travel time, counts, averages per group) |
+| `src/post_processing/vehicle_count_comparison.py` | Any (multiple) | Overlays cumulative vehicle count over time for several logic modules on one plot |
 
-Example — run Priority Pass analysis on an existing log:
+**CLI usage** — reads `recorder.logs_dir` from a scenario config and writes to
+`results/{scenario}/{logic_module}/` — the same directory the standard evaluation output uses;
+filenames are prefixed with `pp_` to avoid collisions:
+
+```bash
+python src/post_processing/priority_pass_analysis.py configurations/demo_sumo_priority_pass_config.json
+```
+
+**Library usage** — call directly with explicit paths:
 
 ```python
 from pathlib import Path
@@ -139,12 +148,29 @@ from post_processing.priority_pass_analysis import PriorityPassAnalysis
 
 analysis = PriorityPassAnalysis(
     logs_dir=Path("logs/demo_priority_pass"),
-    output_dir=Path("results/demo/controller_priority_pass/pp_analysis"),
+    output_dir=Path("results/demo/controller_priority_pass"),
 )
 analysis.run()
 ```
 
-Output: `pp_analysis_stats.json` and three per-group plots in the specified `output_dir`.
+Output: `pp_analysis_stats.json` and three `pp_`-prefixed plots in the specified `output_dir`.
+
+**Vehicle count comparison across controllers** — takes one or more scenario configs, loads
+each one's `vehicle_log.jsonl` via the same `VehicleLogLoader` the standard `Evaluator` uses,
+and overlays their cumulative vehicle count on a single plot. Configs whose log is missing are
+skipped with a printed notice rather than failing the whole comparison. A controller is split
+into "prioritized" / "non-prioritized" series only if its log actually contains prioritized
+vehicles (data-driven, not based on the controller's name):
+
+```bash
+python src/post_processing/vehicle_count_comparison.py \
+    configurations/demo_sumo_baseline_config.json \
+    configurations/demo_sumo_fixed_cycle_config.json \
+    configurations/demo_sumo_max_pressure_config.json \
+    configurations/demo_sumo_priority_pass_config.json
+```
+
+Output: `results/{scenario}/vehicle_counts_comparison.png`.
 
 ### Custom Post-Processing
 
@@ -162,7 +188,8 @@ directly by Python, R, Julia, or any data analysis tool.
 
 ### Controller Comparison
 
-Comparison of different controllers (e.g., Max-Pressure vs. Priority Pass) is not provided as
-a built-in pipeline feature, but can be implemented straightforwardly as a custom
-post-processing script that reads `evaluation_stats.json` or `vehicle_log.jsonl` from multiple
-runs and compares the results.
+`vehicle_count_comparison.py` (above) covers cumulative vehicle count comparisons across
+controllers out of the box. Comparing other metrics (e.g. average travel time across
+Max-Pressure vs. Priority Pass) is not provided as a built-in pipeline feature, but can be
+implemented straightforwardly as a custom post-processing script that reads
+`evaluation_stats.json` or `vehicle_log.jsonl` from multiple runs and compares the results.

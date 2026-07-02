@@ -9,22 +9,30 @@ The standard ``Evaluator`` in ``src/evaluation`` computes controller-agnostic
 aggregate metrics. This script adds the per-group breakdown that is specific
 to the Priority Pass controller.
 
-Example usage::
+Example usage (library)::
 
     from pathlib import Path
     from post_processing.priority_pass_analysis import PriorityPassAnalysis
 
     analysis = PriorityPassAnalysis(
         logs_dir=Path("logs/demo_priority_pass"),
-        output_dir=Path("results/demo/controller_priority_pass/pp_analysis"),
+        output_dir=Path("results/demo/controller_priority_pass"),
     )
     analysis.run()
+
+Example usage (CLI) — loads ``recorder.logs_dir`` from a Priority Pass scenario
+config and writes results to ``results/{scenario}/{logic_module}`` (alongside the
+standard evaluation output)::
+
+    python src/post_processing/priority_pass_analysis.py \\
+        configurations/demo_sumo_priority_pass_config.json
 """
 
 from __future__ import annotations
 
 import json
 import statistics
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -359,3 +367,44 @@ class PriorityPassAnalysis:
         plt.savefig(output_path, dpi=150)
         print(f"Saved plot to {output_path}")
         plt.close()
+
+
+def main() -> None:
+    """CLI entry point: run the Priority Pass analysis for a scenario config.
+
+    Reads ``recorder.logs_dir`` from the given JSON scenario config to locate
+    ``vehicle_log.jsonl``, and writes results to
+    ``results/{scenario}/{logic_module}/`` (same directory as the standard evaluation output;
+    filenames are prefixed with ``pp_`` to avoid collisions).
+    """
+    args = sys.argv[1:]
+    if not args or args[0] in ("--help", "-h"):
+        print("Usage: python src/post_processing/priority_pass_analysis.py CONFIG_FILE")
+        print(
+            "  CONFIG_FILE: Path to a Priority Pass JSON scenario config"
+            " (e.g. configurations/demo_sumo_priority_pass_config.json)"
+        )
+        sys.exit(0)
+
+    config_file = args[0]
+    with Path(config_file).open("r", encoding="utf-8") as f:
+        config = json.load(f)
+
+    logic_modules = list(config.get("logic_modules", []))
+    logic_module_name = str(logic_modules[0]["type"]) if logic_modules else "baseline"
+    if logic_module_name != "controller_priority_pass":
+        print(
+            f"Warning: '{config_file}' logic module is '{logic_module_name}', not"
+            " 'controller_priority_pass' — priority/regular split may be empty."
+        )
+
+    scenario = str(config["scenario"])
+    logs_dir = Path(config["recorder"]["logs_dir"])
+    output_dir = Path("results") / scenario / logic_module_name
+
+    analysis = PriorityPassAnalysis(logs_dir, output_dir)
+    analysis.run()
+
+
+if __name__ == "__main__":
+    main()

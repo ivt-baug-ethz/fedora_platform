@@ -9,17 +9,19 @@ fedora_platform/
 │   ├── controller_priority_pass.py – Priority Pass (Vienna pilot) controller FSM
 │   ├── orchestrator.py               – TCP JSON-line message router FSM and platform orchestrator
 │   ├── recorder.py                – TCP communication logger FSM
-│   └── evaluation/                – Standard evaluation package (VKT, VHT, flow, density, speed)
-│       ├── __init__.py            – Re-exports Evaluator and EvaluationConfig
-│       ├── config.py              – EvaluationConfig dataclass and metric allowlist
-│       ├── loader.py              – VehicleLogLoader: parse vehicle_log.jsonl
-│       ├── metrics.py             – MetricsComputer: pure metric computation
-│       ├── plots.py               – PlotGenerator: aggregate standard plots
-│       └── evaluator.py          – Evaluator facade (wires loader → metrics → plots)
-│
-├── post_processing/               – Controller-specific post-processing scripts (manual, not part of pipeline)
-│   ├── __init__.py
-│   └── priority_pass_analysis.py  – PriorityPassAnalysis: priority vs. regular vehicle breakdown
+│   ├── evaluation/                – Standard evaluation package (VKT, VHT, flow, density, speed)
+│   │   ├── __init__.py            – Re-exports Evaluator and EvaluationConfig
+│   │   ├── config.py              – EvaluationConfig dataclass and metric allowlist
+│   │   ├── loader.py              – VehicleLogLoader: parse vehicle_log.jsonl
+│   │   ├── metrics.py             – MetricsComputer: pure metric computation
+│   │   ├── plots.py               – PlotGenerator: aggregate standard plots
+│   │   └── evaluator.py           – Evaluator facade (wires loader → metrics → plots)
+│   └── post_processing/           – Controller-specific post-processing scripts (manual, not part of pipeline)
+│       ├── __init__.py
+│       ├── priority_pass_analysis.py  – PriorityPassAnalysis: priority vs. regular vehicle
+│       │                                 breakdown; runnable directly as a CLI script
+│       └── vehicle_count_comparison.py – Overlays cumulative vehicle count over time for
+│                                          multiple controllers on one plot; CLI script
 │
 ├── run.py                         – Thin entry point: parses CLI args, starts Orchestrator, runs Evaluator
 │
@@ -70,7 +72,11 @@ fedora_platform/
 │   │   │   ├── travel_time_distribution.png
 │   │   │   ├── average_travel_time.png
 │   │   │   ├── vehicle_counts.png
-│   │   │   └── evaluation_stats.json
+│   │   │   ├── evaluation_stats.json
+│   │   │   ├── pp_travel_time_distribution.png  (from post_processing, if run)
+│   │   │   ├── pp_average_travel_time.png       (from post_processing, if run)
+│   │   │   ├── pp_vehicle_counts.png            (from post_processing, if run)
+│   │   │   └── pp_analysis_stats.json           (from post_processing, if run)
 │   │   ├── max_pressure/
 │   │   └── fixed_cycle/
 │   ├── vienna/
@@ -184,12 +190,31 @@ fedora_platform/
 - `plots.py`: `PlotGenerator` — three aggregate plots (no priority/group split): travel time histogram, cumulative vehicle count, cumulative average travel time
 - `evaluator.py`: `Evaluator` — facade that wires loader → metrics → plots → writes `evaluation_stats.json`
 
-**post_processing/priority_pass_analysis.py**
+**src/post_processing/priority_pass_analysis.py**
 
 - `PriorityPassAnalysis` — manual post-processing script for Priority Pass runs
 - Reads `vehicle_log.jsonl` and splits vehicles into regular (priority=0) vs. priority (priority=1) groups
 - Computes per-group travel time statistics and generates per-group plots
 - Not part of the standard evaluation pipeline; run manually after collecting PP logs
+- Has a `main()` CLI entry point: `python src/post_processing/priority_pass_analysis.py CONFIG_FILE`
+  derives `logs_dir` from `config["recorder"]["logs_dir"]` and writes to
+  `results/{scenario}/{logic_module}/` — the same directory as the standard evaluation output;
+  `pp_`-prefixed filenames avoid collisions — mirroring `run.py`'s config-driven pattern
+
+**src/post_processing/vehicle_count_comparison.py**
+
+- Cross-controller post-processing: overlays cumulative vehicle count over time for several
+  logic modules (e.g. baseline, fixed-cycle, max-pressure, priority-pass) on one plot
+- Reuses `VehicleLogLoader` from `src/evaluation/loader.py` (controller-agnostic, already
+  returns the `priority` field) instead of re-parsing `vehicle_log.jsonl`
+- `main()` CLI entry point accepts multiple `CONFIG_FILE` arguments (one per controller);
+  configs whose `vehicle_log.jsonl` is missing are skipped with a printed notice rather than
+  failing the whole comparison
+- A controller is split into "prioritized"/"non-prioritized" series only when its own vehicle
+  records actually contain a non-zero `priority` value (data-driven, not keyed off the
+  controller's type name); otherwise it is plotted as a single aggregate line
+- Output: `results/{scenario}/vehicle_counts_comparison.png` (scenario taken from the first
+  config whose log data was found)
 
 ### Entry Points
 
@@ -200,6 +225,12 @@ fedora_platform/
 - Reads `config["evaluation"]` block and constructs `EvaluationConfig` to control which metrics run
 - Runs the `Evaluator` after the environment run completes unless `evaluation.enabled` is false or `--skip-evaluation` is passed (CLI flag overrides config)
 - All component lifecycle management is handled by the Orchestrator internally
+
+**src/post_processing/priority_pass_analysis.py**
+
+- Secondary entry point, run manually and separately from `run.py` (not invoked automatically)
+- `main()` parses a single `CONFIG_FILE` argument, derives `logs_dir`/`output_dir` the same way
+  `run.py` does, and runs `PriorityPassAnalysis`
 
 ### Structural Rules
 

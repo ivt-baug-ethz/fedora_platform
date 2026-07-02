@@ -105,12 +105,15 @@ they do not split results by vehicle priority class or controller type.
 **Configuration:** controlled by the `evaluation` block in the JSON config (`enabled`, `metrics`).
 See the [Evaluation](evaluation.md) page for full details.
 
-**Post-processing:** Controller-specific or scenario-specific analysis (e.g. Priority Pass
-priority vs. regular vehicle breakdown) lives in `post_processing/` at the repository root and
-is run manually. See [Post-Processing](evaluation.md#post-processing).
+**Post-processing:** Controller-specific or cross-controller analysis (e.g. Priority Pass
+priority vs. regular vehicle breakdown, or vehicle count comparison across several logic
+modules) lives in `src/post_processing/` and is run manually.
+See [Post-Processing](evaluation.md#post-processing).
 
 ## Entry Points
 
-| Script   | Purpose                                                                                        |
-| -------- | ---------------------------------------------------------------------------------------------- |
-| `run.py` | Main entry point: parses CLI args, starts Orchestrator, runs Evaluator after the run completes |
+| Script                                             | Purpose                                                                                         |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `run.py`                                            | Main entry point: parses CLI args, starts Orchestrator, runs Evaluator after the run completes  |
+| `src/post_processing/priority_pass_analysis.py`     | Manual post-processing: Priority Pass priority vs. regular vehicle breakdown (see above)         |
+| `src/post_processing/vehicle_count_comparison.py`   | Manual post-processing: overlays cumulative vehicle count across multiple controllers            |

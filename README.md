@@ -70,6 +70,9 @@ src/
   orchestrator.py              TCP JSON-line message router FSM
   recorder.py                  Communication logger FSM
   evaluation/                  Standard metrics evaluation package (VKT, VHT, flow, density, ...)
+  post_processing/              Controller-specific post-processing (not part of the standard pipeline)
+    priority_pass_analysis.py  Priority vs. regular vehicle breakdown (Priority Pass-specific)
+    vehicle_count_comparison.py  Vehicle count over time across multiple controllers
 
 configurations/
   demo_sumo_baseline_config.json          Demo: no controller (SUMO default signal plans)
@@ -87,9 +90,6 @@ scenarios/demo/sumo/
   demand.xml                   Vehicle routes
   phase_*.json                 Lane-to-phase mappings
   route_*.json                 Route metadata
-
-post_processing/
-  priority_pass_analysis.py    Priority vs. regular vehicle breakdown (Priority Pass-specific)
 
 tests/
   test_evaluator.py            Evaluator end-to-end tests
@@ -362,7 +362,17 @@ Evaluation can be disabled via config (`evaluation.enabled: false`) or overridde
 python run.py configurations/demo_sumo_fixed_cycle_config.json --skip-evaluation
 ```
 
-Controller-specific analysis (e.g. Priority Pass priority vs. regular vehicle breakdown) is available as a manual post-processing script in `post_processing/priority_pass_analysis.py`.
+Controller-specific analysis (e.g. Priority Pass priority vs. regular vehicle breakdown) is available as a manual post-processing script in `src/post_processing/priority_pass_analysis.py`:
+
+```bash
+python src/post_processing/priority_pass_analysis.py configurations/demo_sumo_priority_pass_config.json
+```
+
+Comparing vehicle counts over time across multiple controllers is available via `src/post_processing/vehicle_count_comparison.py` (accepts any number of scenario configs; missing logs are skipped, and prioritized/non-prioritized vehicles are split automatically wherever a controller's log distinguishes them):
+
+```bash
+python src/post_processing/vehicle_count_comparison.py configurations/demo_sumo_baseline_config.json configurations/demo_sumo_fixed_cycle_config.json configurations/demo_sumo_max_pressure_config.json configurations/demo_sumo_priority_pass_config.json
+```
 
 ## Requirements
 

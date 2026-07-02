@@ -1,5 +1,117 @@
 # Architectural Decisions
 
+## ADR 2026-07-02: Add Cross-Controller Vehicle Count Comparison Script
+
+### Status
+
+Accepted.
+
+### Context
+
+`docs/evaluation.md` documented that "comparison of different controllers is not provided as a
+built-in pipeline feature," pointing users to write a custom post-processing script instead.
+There was a concrete, common need — overlaying cumulative vehicle count over time for several
+controllers on the same scenario (baseline, fixed-cycle, max-pressure, priority-pass) — that did
+not require inventing new metrics, so it was worth providing directly rather than leaving every
+user to reimplement it.
+
+### Decision
+
+Add `src/post_processing/vehicle_count_comparison.py`:
+
+1. `load_controller(config_file)` reads one scenario config, derives `logs_dir` the same way
+   `run.py` and `priority_pass_analysis.py` do, and loads vehicle records via the existing
+   `VehicleLogLoader` (`src/evaluation/loader.py`) — no new JSONL-parsing code. Returns `None`
+   for the records (with a printed notice) if `vehicle_log.jsonl` does not exist, rather than
+   raising, so one missing controller does not abort the whole comparison.
+
+2. `plot_vehicle_counts_comparison(controllers, output_path)` builds one cumulative-count line
+   per controller, sorted by departure time (same logic as `PlotGenerator.plot_vehicle_counts`
+   and `PriorityPassAnalysis.plot_vehicle_counts_by_group`, but generalized to overlay an
+   arbitrary number of controllers on one shared axis instead of a fixed 2-way split). A
+   controller is only split into "prioritized"/"non-prioritized" series if its own records
+   contain a non-zero `priority` value — this is a property of the data, not of the controller's
+   type name, since priority vehicles can in principle be spawned regardless of which controller
+   is running.
+
+3. `main()` accepts any number of `CONFIG_FILE` arguments and writes to
+   `results/{scenario}/vehicle_counts_comparison.png`, taking `scenario` from the first config
+   whose log data was actually found (not simply the last config processed, which would silently
+   point the output path at the wrong scenario if an earlier/later config's log was missing).
+
+### Rationale
+
+- Reusing `VehicleLogLoader` instead of duplicating JSONL parsing a third time (it already
+  exists in both `src/evaluation/loader.py` and, historically, inline in
+  `priority_pass_analysis.py`) keeps this script genuinely minimal.
+- Data-driven priority-split detection (checking the records) is more correct than assuming only
+  `controller_priority_pass` runs can have prioritized vehicles — vehicle spawn probabilities are
+  configured independently of the controller type.
+- Skipping missing controllers with a message (rather than raising) matches the existing
+  `Evaluator`/`PriorityPassAnalysis` pattern of continuing gracefully when optional data is
+  absent.
+
+### Consequences
+
+- `docs/evaluation.md`'s "Controller Comparison" section now points to this script for vehicle
+  count comparisons specifically; other metric comparisons are still left to custom
+  post-processing.
+- `results/{scenario}/vehicle_counts_comparison.png` is a new possible output file, written only
+  when this script is run manually.
+
+---
+
+## ADR 2026-07-02: Move `post_processing/` Under `src/` and Add a CLI Entry Point
+
+### Status
+
+Accepted.
+
+### Context
+
+`post_processing/priority_pass_analysis.py` lived at the repository root, outside `src/`, while
+every other importable Python component (the `evaluation` package, controllers, orchestrator,
+recorder) lives under `src/`. This was inconsistent, and there was no runnable script — using it
+required writing a small Python snippet to construct `PriorityPassAnalysis` with explicit
+`logs_dir`/`output_dir` paths, unlike `run.py` which is directly runnable against a scenario
+config.
+
+### Decision
+
+1. Move `post_processing/` to `src/post_processing/` (`git mv`, preserving history). Because the
+   project's editable install exposes `src/` directly on `sys.path` (see
+   `pyproject.toml`'s `[tool.setuptools.packages.find] where = ["src"]`), the import path
+   `from post_processing.priority_pass_analysis import PriorityPassAnalysis` is unchanged.
+
+2. Add a `main()` CLI entry point directly to `priority_pass_analysis.py` (not a separate
+   wrapper script). It takes a single `CONFIG_FILE` argument, derives `logs_dir` from
+   `config["recorder"]["logs_dir"]` and `output_dir` as `results/{scenario}/{logic_module}/` —
+   the same directory the standard `Evaluator` writes to, mirroring `run.py`'s config-driven
+   pattern. All output filenames are prefixed with `pp_` (e.g. `pp_analysis_stats.json`) so
+   they coexist with `evaluation_stats.json` and the standard plots without a separate
+   subdirectory. The script also prints a warning (without raising) if the config's logic
+   module is not `controller_priority_pass`, since it still runs against any vehicle log (the
+   priority/regular split will just be empty or trivial).
+
+### Rationale
+
+- Keeping all importable code under `src/` matches the existing `evaluation/` package and the
+  `pyproject.toml` package-discovery root; `post_processing/` at the repository root was the only
+  exception.
+- A single-argument CLI (`python src/post_processing/priority_pass_analysis.py CONFIG_FILE`)
+  reuses the same scenario config the user already has for `run.py`, rather than requiring a
+  separate invocation script or hard-coded paths.
+- The library usage (`PriorityPassAnalysis(logs_dir, output_dir).run()`) is preserved unchanged
+  for custom scripting.
+
+### Consequences
+
+- No import path changes for existing callers on a machine with the editable install active.
+- `README.md`, `docs/evaluation.md`, `docs/components.md`, and `.agent-docs/STRUCTURE.md` updated
+  to reference `src/post_processing/` and the new CLI usage.
+
+---
+
 ## ADR 2026-07-02: Remove Average Delay and Delay Variance Metrics
 
 ### Status
