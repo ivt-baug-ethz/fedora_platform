@@ -85,5 +85,17 @@
       "logic_module_state": {}
     }
   },
-  "logic_modules": []
+  "logic_modules": [],
+  "evaluation": {
+    "enabled": true,
+    "metrics": [
+      "travel_time",
+      "travel_time_variance",
+      "vht",
+      "vkt",
+      "flow",
+      "speed",
+      "density"
+    ]
+  }
 }

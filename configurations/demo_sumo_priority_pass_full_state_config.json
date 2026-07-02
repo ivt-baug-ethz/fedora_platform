@@ -114,5 +114,17 @@
         "trade_off": 0.6
       }
     }
-  ]
+  ],
+  "evaluation": {
+    "enabled": true,
+    "metrics": [
+      "travel_time",
+      "travel_time_variance",
+      "vht",
+      "vkt",
+      "flow",
+      "speed",
+      "density"
+    ]
+  }
 }

@@ -84,14 +84,36 @@ The Recorder is only instantiated when a `"recorder"` port is present in `commun
 - **Vehicle log** (`vehicle_log_enabled`): disabling this skips `vehicle_log.jsonl` and suppresses the post-run Evaluator.
 - **State polling**: when the Orchestrator polls component state, the resulting `state_report` messages are forwarded to the Recorder and subject to the same topic filter. Enable specific state fields in the `recorder.state_polling` config to capture them — no changes to recorder configuration are needed beyond setting the desired attributes to `true`.
 
-## Evaluator (`src/evaluator.py`)
+## Evaluation (`src/evaluation/`)
 
-Post-run analysis component. Reads vehicle event logs, calculates travel times and delays (separated by priority status), generates visualizations, and exports summary statistics.
+Post-run analysis package. Reads `vehicle_log.jsonl` and computes standard traffic-engineering
+metrics. All metrics are agnostic aggregates with respect to the connected logic components —
+they do not split results by vehicle priority class or controller type.
 
-**Output:** `results/{scenario}/{logic_module}/`
+**Package structure:**
+
+| Module                    | Responsibility                                                                                                 |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `evaluation/config.py`    | `EvaluationConfig` dataclass — which metrics to compute and whether to run                                     |
+| `evaluation/loader.py`    | `VehicleLogLoader` — parses `vehicle_log.jsonl` into per-vehicle records                                       |
+| `evaluation/metrics.py`   | `MetricsComputer` — pure computation of all standard metrics (VKT, VHT, flow, density, speed, travel time variance) |
+| `evaluation/plots.py`     | `PlotGenerator` — three aggregate plots (histogram, cumulative count, cumulative average travel time)          |
+| `evaluation/evaluator.py` | `Evaluator` — facade that wires the above into a single `evaluate_and_report()` call                           |
+
+**Output:** `results/{scenario}/{logic_module}/` — three PNGs + `evaluation_stats.json`.
+
+**Configuration:** controlled by the `evaluation` block in the JSON config (`enabled`, `metrics`).
+See the [Evaluation](evaluation.md) page for full details.
+
+**Post-processing:** Controller-specific or cross-controller analysis (e.g. Priority Pass
+priority vs. regular vehicle breakdown, or vehicle count comparison across several logic
+modules) lives in `src/post_processing/` and is run manually.
+See [Post-Processing](evaluation.md#post-processing).
 
 ## Entry Points
 
-| Script   | Purpose                                                                                        |
-| -------- | ---------------------------------------------------------------------------------------------- |
-| `run.py` | Main entry point: parses CLI args, starts Orchestrator, runs Evaluator after the run completes |
+| Script                                             | Purpose                                                                                         |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `run.py`                                            | Main entry point: parses CLI args, starts Orchestrator, runs Evaluator after the run completes  |
+| `src/post_processing/priority_pass_analysis.py`     | Manual post-processing: Priority Pass priority vs. regular vehicle breakdown (see above)         |
+| `src/post_processing/vehicle_count_comparison.py`   | Manual post-processing: overlays cumulative vehicle count across multiple controllers            |

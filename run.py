@@ -1,8 +1,8 @@
 """Start the FEDORA platform via the Orchestrator.
 
 The Orchestrator reads the configuration file and initialises all other components
-(Recorder, LogicModule, Simulation).  run.py is intentionally thin: it only
-handles CLI arguments, starts the Orchestrator, and runs the post-simulation
+(Recorder, LogicModule, Environment).  run.py is intentionally thin: it only
+handles CLI arguments, starts the Orchestrator, and runs the post-run
 Evaluator.
 
 Examples:
@@ -25,9 +25,11 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
 from orchestrator import Orchestrator
-from evaluator import Evaluator
+from evaluation import Evaluator
+from evaluation.config import EvaluationConfig
 
 
 def main() -> None:
@@ -38,13 +40,14 @@ def main() -> None:
 
     for arg in sys.argv[1:]:
         if arg in ("--help", "-h"):
-            # print usage info and exit immediately without running the simulation
+            # print usage info and exit immediately without running the platform
             print("Usage: python run.py [CONFIG_FILE] [OPTIONS]")
             print("  CONFIG_FILE: Path to JSON config file")
             print("               (default: demo_sumo_priority_pass_config.json)")
             print("\nOptions:")
             print(
-                "  --skip-evaluation: Skip evaluation and visualization after simulation"
+                "  --skip-evaluation: Skip evaluation after the run"
+                " (overrides evaluation.enabled in config)"
             )
             print(
                 "  --headless:        Use headless SUMO binary (binary_headless from config)"
@@ -89,32 +92,37 @@ def main() -> None:
         settings = config["environment"]["settings"]
         settings["binary"] = settings.get("binary_headless", "sumo")
 
-    # extract names used for result directory paths and priority-plot visibility
+    # extract names used for result directory paths
     scenario = str(config["scenario"])
     logic_modules = list(config.get("logic_modules", []))
     logic_module_name = str(logic_modules[0]["type"]) if logic_modules else "baseline"
-    show_priority = any(
-        m.get("type") == "controller_priority_pass" for m in logic_modules
-    )
+
+    # determine whether evaluation should run:
+    # --skip-evaluation CLI flag always overrides the config setting
+    eval_cfg_dict: dict[str, Any] = config.get("evaluation", {})
+    config_enabled = bool(eval_cfg_dict.get("enabled", True))
+    run_evaluation = not skip_evaluation and config_enabled
 
     orchestrator = Orchestrator(config)
 
     try:
         orchestrator.start()
         orchestrator.wait_until_done()
-        if not skip_evaluation:
-            # resolve log and output directories, then run post-simulation analysis
+        if run_evaluation:
             logs_dir = Path(config["recorder"]["logs_dir"])
             output_dir = Path("results") / scenario / logic_module_name
             try:
-                evaluator = Evaluator(logs_dir, output_dir, show_priority=show_priority)
+                eval_config = EvaluationConfig.from_dict(eval_cfg_dict)
+                evaluator = Evaluator(logs_dir, output_dir, eval_config)
                 evaluator.evaluate_and_report()
             except FileNotFoundError as error:
-                print(f"Warning: Evaluation skipped - {error}")
+                print(f"Warning: Evaluation skipped — {error}")
+            except ValueError as error:
+                print(f"Warning: Invalid evaluation config — {error}")
     except KeyboardInterrupt:
         pass
     finally:
-        # always stop the orchestrator so SUMO and sockets are released cleanly
+        # always stop the orchestrator so the environment and sockets are released cleanly
         orchestrator.stop()
 
 

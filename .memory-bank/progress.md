@@ -34,10 +34,28 @@
 - `run.py` is a thin entry point: creates Orchestrator, calls start/wait_until_done, runs Evaluator
 - SUMO executable resolution from PATH, `SUMO_HOME`, and platform-specific install locations
 
+**Evaluation (updated 2026-07-02):**
+- `src/evaluation/` package: EvaluationConfig, VehicleLogLoader, MetricsComputer, PlotGenerator, Evaluator
+- Standard metrics: VKT, VHT, flow, space-mean speed, density, travel time stats, travel time variance
+  (average delay / delay variance were added 2026-07-01 and removed 2026-07-02 — the free-flow proxy
+  assumption was invalid for networks with routes of different lengths; see DECISIONS.md)
+- `src/post_processing/priority_pass_analysis.py`: PP-specific priority vs. regular vehicle analysis
+  (manual post-processing, moved under `src/` 2026-07-02); runnable directly as
+  `python src/post_processing/priority_pass_analysis.py CONFIG_FILE`
+- `src/post_processing/vehicle_count_comparison.py`: cross-controller vehicle count comparison
+  (2026-07-02); accepts multiple scenario configs, reuses `VehicleLogLoader`, skips missing logs
+  with a notice, splits prioritized/non-prioritized only when the data shows it; runnable as
+  `python src/post_processing/vehicle_count_comparison.py CONFIG_FILE [CONFIG_FILE ...]`
+- Evaluation configurable via `evaluation.enabled` / `evaluation.metrics` in JSON configs
+- `vehicle_log.jsonl` extended with `route_distance_m` (per departure) and `total_lane_length_m` (in run_meta)
+- Edge lengths in `environment_sumo.py` derived from `lane.getEdgeID()` + cached lane lengths (TraCI has
+  no `edge.getLength()`)
+
 **Testing:**
-- Test suite at root-level `tests/` directory
+- Test suite at root-level `tests/` directory — 107 tests passing (up from 80)
 - Basic functionality tests for core components and Priority Pass implementation
 - Configuration validation tests passing
+- New: test_loader.py (7 tests), test_metrics.py (13 tests), test_evaluation_config.py (6 tests)
 - Priority Pass parity regression tests verify that `trade_off = 0.0` matches Max-Pressure
   phase commands/FSM state and that shipped Priority Pass configs preserve Max-Pressure
   auction timing.

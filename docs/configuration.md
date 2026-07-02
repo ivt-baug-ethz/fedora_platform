@@ -226,6 +226,55 @@ python run.py configurations/demo_sumo_priority_pass_full_state_config.json
 
 Use it to verify that state polling works end-to-end or to capture a complete diagnostic trace. For regular benchmarking runs, leave the TraCI fields and bid fields at `false` to avoid the overhead.
 
+### `evaluation`
+
+Controls whether post-run standard metrics are computed and which ones are enabled.
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `enabled` | bool | `true` | Run evaluation after the environment run completes. The `--skip-evaluation` CLI flag overrides this to `false`. |
+| `metrics` | array of strings | `[]` | Metric allowlist. An empty list enables **all** standard metrics. |
+
+**Valid metric names:** `travel_time`, `travel_time_variance`, `vht`, `vkt`, `flow`, `speed`,
+`density`.
+
+**Example — enable all metrics (default):**
+
+```json
+"evaluation": {
+  "enabled": true,
+  "metrics": []
+}
+```
+
+**Example — enable only travel time and flow:**
+
+```json
+"evaluation": {
+  "enabled": true,
+  "metrics": ["travel_time", "flow"]
+}
+```
+
+**Example — disable evaluation entirely:**
+
+```json
+"evaluation": {
+  "enabled": false,
+  "metrics": []
+}
+```
+
+!!! note
+    `vkt` and `space_mean_speed` require `route_distance_m` in vehicle departure events, and
+    `density` requires `total_lane_length_m` in the `run_meta` log header. Both fields are
+    written automatically by the bundled SUMO environment; any other environment implementation
+    must populate the same fields to support these metrics. Metrics that cannot be computed due
+    to missing data emit `null` in `evaluation_stats.json` rather than failing.
+
+See the [Evaluation](evaluation.md) page for a complete description of all metrics and output
+files.
+
 ## Adding a New Logic Module
 
 1. Create `src/controller_<name>.py` implementing the FSM lifecycle and the `traffic_state` / `logic_command` message contract.
