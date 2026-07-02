@@ -1,0 +1,1102 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="A modular orchestration framework for multimodal traffic management">
+      
+      
+      
+        <link rel="canonical" href="https://ivt-baug-ethz.github.io/fedora_platform/components/">
+      
+      
+        <link rel="prev" href="../architecture/">
+      
+      
+        <link rel="next" href="../evaluation/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Components - FEDORA Platform</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#components" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="FEDORA Platform" class="md-header__button md-logo" aria-label="FEDORA Platform" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            FEDORA Platform
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Components
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/ivt-baug-ethz/fedora_platform" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    ivt-baug-ethz/fedora_platform
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href=".." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../getting-started/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Getting Started
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../architecture/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Architecture
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    <li class="md-tabs__item md-tabs__item--active">
+      <a href="./" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Components
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../evaluation/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Evaluation
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../configuration/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Configuration
+
+      </a>
+    </li>
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="FEDORA Platform" class="md-nav__button md-logo" aria-label="FEDORA Platform" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    FEDORA Platform
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/ivt-baug-ethz/fedora_platform" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    ivt-baug-ethz/fedora_platform
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Components
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Components
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#orchestrator-srcorchestratorpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Orchestrator (src/orchestrator.py)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#environment-layer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Environment Layer
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Environment Layer">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#environment-for-demonstrator-sumo-srcenvironment_sumopy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Environment for Demonstrator: SUMO (src/environment_sumo.py)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#logic-modules" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Logic Modules
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Logic Modules">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#example-implementations-in-this-demonstrator" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example Implementations in This Demonstrator
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Example Implementations in This Demonstrator">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#configurable-fixed-cycle-srccontroller_fixed_cyclepy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configurable Fixed-Cycle (src/controller_fixed_cycle.py)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#max-pressure-srccontroller_max_pressurepy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Max-Pressure (src/controller_max_pressure.py)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#urban-priority-pass-srccontroller_priority_passpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Urban Priority Pass (src/controller_priority_pass.py)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#recorder-srcrecorderpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Recorder (src/recorder.py)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#evaluation-srcevaluation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Evaluation (src/evaluation/)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#entry-points" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Entry Points
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../evaluation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Evaluation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#orchestrator-srcorchestratorpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Orchestrator (src/orchestrator.py)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#environment-layer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Environment Layer
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Environment Layer">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#environment-for-demonstrator-sumo-srcenvironment_sumopy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Environment for Demonstrator: SUMO (src/environment_sumo.py)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#logic-modules" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Logic Modules
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Logic Modules">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#example-implementations-in-this-demonstrator" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example Implementations in This Demonstrator
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Example Implementations in This Demonstrator">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#configurable-fixed-cycle-srccontroller_fixed_cyclepy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configurable Fixed-Cycle (src/controller_fixed_cycle.py)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#max-pressure-srccontroller_max_pressurepy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Max-Pressure (src/controller_max_pressure.py)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#urban-priority-pass-srccontroller_priority_passpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Urban Priority Pass (src/controller_priority_pass.py)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#recorder-srcrecorderpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Recorder (src/recorder.py)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#evaluation-srcevaluation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Evaluation (src/evaluation/)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#entry-points" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Entry Points
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="components">Components<a class="headerlink" href="#components" title="Permanent link">&para;</a></h1>
+<h2 id="orchestrator-srcorchestratorpy">Orchestrator (<code>src/orchestrator.py</code>)<a class="headerlink" href="#orchestrator-srcorchestratorpy" title="Permanent link">&para;</a></h2>
+<p>The sole orchestrator of the platform. It reads the full JSON configuration, creates all sub-components (Recorder, Logic Modules, Environment), drives the step loop, and routes messages between components.</p>
+<p><strong>Responsibilities:</strong></p>
+<ul>
+<li>Instantiate and lifecycle-manage all other components</li>
+<li>Drive the <code>step</code> / <code>apply_and_advance</code> loop</li>
+<li>Fan-out environment state observations to all Logic Modules simultaneously</li>
+<li>Merge <code>logic_command</code> responses and forward the combined command to the Environment</li>
+<li>Mirror all traffic to the Recorder</li>
+<li>Query each Logic Module's measurement requirements and pass them to the Environment</li>
+<li>After each step, optionally poll components for internal state (<code>get_state</code> → <code>state_report</code>) and forward the reports to the Recorder — activated automatically when at least one state attribute is enabled in the recorder config</li>
+</ul>
+<h2 id="environment-layer">Environment Layer<a class="headerlink" href="#environment-layer" title="Permanent link">&para;</a></h2>
+<p>The environment layer is the <strong>pluggable execution backend</strong> of the platform. It produces state observations (<code>traffic_state</code>) and applies the merged commands received via <code>apply_and_advance</code>. Any implementation that respects this two-message contract can serve as the environment — the Orchestrator, Logic Modules, and Recorder are fully unaware of what is running behind it.</p>
+<p>Concrete backends can include:</p>
+<ul>
+<li><strong>Microsimulations</strong> (e.g. SUMO/TraCI, VISSIM, Aimsun) — run in headless mode for batch experiments or with a GUI for interactive inspection</li>
+<li><strong>Mesoscopic or macroscopic models</strong> — suitable for network-wide or long-horizon studies where per-vehicle fidelity is not required</li>
+<li><strong>Hardware-in-the-loop testbeds</strong> — where physical signal controllers or sensor arrays feed real measurements into the pipeline</li>
+<li><strong>Live pilot deployment sites</strong> — field deployments where a thin field interface translates sensor readings and command outputs into the platform's message format</li>
+</ul>
+<p>The only requirement is that the environment can provide the state fields requested by the active Logic Modules (declared via <code>get_required_measurements()</code>) and can accept the command type returned by those modules.</p>
+<h3 id="environment-for-demonstrator-sumo-srcenvironment_sumopy">Environment for Demonstrator: SUMO (<code>src/environment_sumo.py</code>)<a class="headerlink" href="#environment-for-demonstrator-sumo-srcenvironment_sumopy" title="Permanent link">&para;</a></h3>
+<p>Implements the <code>"sumo"</code> environment type using SUMO/TraCI. Manages the SUMO process lifecycle, the TraCI connection, and vehicle spawning via configurable demand models.</p>
+<p><strong>Responsibilities:</strong></p>
+<ul>
+<li>Connect to SUMO via TraCI</li>
+<li>Wait passively for <code>step</code> messages before each iteration</li>
+<li>Collect queue lengths, vehicle positions, and signal states</li>
+<li>Apply commands received via <code>apply_and_advance</code></li>
+<li>Spawn vehicles and manage simulation time</li>
+</ul>
+<p><strong>Configuration key:</strong> <code>"type": "sumo"</code> in the <code>"environment"</code> config block.</p>
+<h2 id="logic-modules">Logic Modules<a class="headerlink" href="#logic-modules" title="Permanent link">&para;</a></h2>
+<p>A logic module is any pluggable component that receives environment state observations (<code>traffic_state</code>) and returns a command dict (<code>logic_command</code>) each step. The interface is intentionally general: a module can implement a signal controller, a demand model, a pricing engine, a data logger, or any other decision-making or processing component that consumes environment observations and produces (possibly empty) commands.</p>
+<p>Multiple modules can be listed in the <code>"logic_modules"</code> array; the Orchestrator fans the state out to all of them simultaneously and merges their command outputs before forwarding to the environment. The union of all modules' measurement requirements is collected automatically — no manual configuration of enabled measurements is needed.</p>
+<p>Setting <code>"logic_modules": []</code> activates <strong>baseline mode</strong>: the Orchestrator immediately sends an empty <code>apply_and_advance</code> each step, leaving the environment's own default behaviour untouched (for SUMO, this means the built-in signal plans run unmodified). Use baseline runs as the performance reference for comparing active logic modules.</p>
+<h3 id="example-implementations-in-this-demonstrator">Example Implementations in This Demonstrator<a class="headerlink" href="#example-implementations-in-this-demonstrator" title="Permanent link">&para;</a></h3>
+<p>This repository demonstrates the framework in the context of traffic signal control. The three logic modules included here are all signal controllers — concrete examples of one possible use of the logic module slot. Any other decision-making or data-processing component that respects the <code>traffic_state</code> → <code>logic_command</code> interface (e.g. a demand model, a pricing engine, or a reinforcement-learning agent) could be plugged in instead, without changes to the Orchestrator, Environment, or Recorder.</p>
+<h4 id="configurable-fixed-cycle-srccontroller_fixed_cyclepy">Configurable Fixed-Cycle (<code>src/controller_fixed_cycle.py</code>)<a class="headerlink" href="#configurable-fixed-cycle-srccontroller_fixed_cyclepy" title="Permanent link">&para;</a></h4>
+<p>User-defined pre-timed phase schedules with configurable per-phase green durations, transition (amber) duration, and per-intersection startup time offsets. Unlike the baseline, all phase timings are explicitly set in the configuration rather than inherited from the environment's defaults. Simple and predictable; cannot adapt to demand changes.</p>
+<h4 id="max-pressure-srccontroller_max_pressurepy">Max-Pressure (<code>src/controller_max_pressure.py</code>)<a class="headerlink" href="#max-pressure-srccontroller_max_pressurepy" title="Permanent link">&para;</a></h4>
+<p>Real-time responsive control based on queue pressure (difference in queue lengths at opposing approaches). Uses an auction mechanism to select the highest-pressure phase each step. Adapts to demand but may be unstable under high congestion.</p>
+<h4 id="urban-priority-pass-srccontroller_priority_passpy">Urban Priority Pass (<code>src/controller_priority_pass.py</code>)<a class="headerlink" href="#urban-priority-pass-srccontroller_priority_passpy" title="Permanent link">&para;</a></h4>
+<p>Extends Max-Pressure with a priority bidding mechanism for designated vehicles (e.g. public transit). Balances network-wide efficiency with transit reliability via a configurable trade-off parameter.</p>
+<p>Priority Pass intentionally shares the same auction FSM timing parameters as Max-Pressure. At <code>trade_off = 0.0</code>, the combined bid is exactly the queue-length bid, so the controller should produce the same phase sequence as Max-Pressure for the same measurements and random seed. Values above zero gradually add UPP bids to the auction and are the intended prioritisation experiment.</p>
+<h2 id="recorder-srcrecorderpy">Recorder (<code>src/recorder.py</code>)<a class="headerlink" href="#recorder-srcrecorderpy" title="Permanent link">&para;</a></h2>
+<p>Listens on a dedicated TCP port for message copies forwarded by the Orchestrator. Writes inter-component communication and (optionally) per-step component state snapshots to log files for post-run analysis.</p>
+<p>The Recorder is only instantiated when a <code>"recorder"</code> port is present in <code>communication.ports</code>. If the port is omitted, no log files are created and the simulation runs at minimum overhead.</p>
+<p><strong>Output:</strong></p>
+<ul>
+<li><code>logs/{run_label}/communication_log.txt</code> — inter-component messages (first line is always a <code>run_meta</code> record describing the run)</li>
+<li><code>logs/{run_label}/vehicle_log.jsonl</code> — vehicle arrival/departure events (when <code>vehicle_log_enabled: true</code>)</li>
+</ul>
+<p><strong>Configurable logging:</strong></p>
+<ul>
+<li><strong>Topic filter</strong> (<code>topics</code>): an allowlist of message topics to record. Leave empty to capture all traffic; set to a non-empty list (e.g. <code>["traffic_state", "logic_command"]</code>) to reduce log volume.</li>
+<li><strong>Vehicle log</strong> (<code>vehicle_log_enabled</code>): disabling this skips <code>vehicle_log.jsonl</code> and suppresses the post-run Evaluator.</li>
+<li><strong>State polling</strong>: when the Orchestrator polls component state, the resulting <code>state_report</code> messages are forwarded to the Recorder and subject to the same topic filter. Enable specific state fields in the <code>recorder.state_polling</code> config to capture them — no changes to recorder configuration are needed beyond setting the desired attributes to <code>true</code>.</li>
+</ul>
+<h2 id="evaluation-srcevaluation">Evaluation (<code>src/evaluation/</code>)<a class="headerlink" href="#evaluation-srcevaluation" title="Permanent link">&para;</a></h2>
+<p>Post-run analysis package. Reads <code>vehicle_log.jsonl</code> and computes standard traffic-engineering
+metrics. All metrics are agnostic aggregates with respect to the connected logic components —
+they do not split results by vehicle priority class or controller type.</p>
+<p><strong>Package structure:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Module</th>
+<th>Responsibility</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>evaluation/config.py</code></td>
+<td><code>EvaluationConfig</code> dataclass — which metrics to compute and whether to run</td>
+</tr>
+<tr>
+<td><code>evaluation/loader.py</code></td>
+<td><code>VehicleLogLoader</code> — parses <code>vehicle_log.jsonl</code> into per-vehicle records</td>
+</tr>
+<tr>
+<td><code>evaluation/metrics.py</code></td>
+<td><code>MetricsComputer</code> — pure computation of all standard metrics (VKT, VHT, flow, density, speed, travel time variance)</td>
+</tr>
+<tr>
+<td><code>evaluation/plots.py</code></td>
+<td><code>PlotGenerator</code> — three aggregate plots (histogram, cumulative count, cumulative average travel time)</td>
+</tr>
+<tr>
+<td><code>evaluation/evaluator.py</code></td>
+<td><code>Evaluator</code> — facade that wires the above into a single <code>evaluate_and_report()</code> call</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Output:</strong> <code>results/{scenario}/{logic_module}/</code> — three PNGs + <code>evaluation_stats.json</code>.</p>
+<p><strong>Configuration:</strong> controlled by the <code>evaluation</code> block in the JSON config (<code>enabled</code>, <code>metrics</code>).
+See the <a href="../evaluation/">Evaluation</a> page for full details.</p>
+<p><strong>Post-processing:</strong> Controller-specific or cross-controller analysis (e.g. Priority Pass
+priority vs. regular vehicle breakdown, or vehicle count comparison across several logic
+modules) lives in <code>src/post_processing/</code> and is run manually.
+See <a href="../evaluation/#post-processing">Post-Processing</a>.</p>
+<h2 id="entry-points">Entry Points<a class="headerlink" href="#entry-points" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Script</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>run.py</code></td>
+<td>Main entry point: parses CLI args, starts Orchestrator, runs Evaluator after the run completes</td>
+</tr>
+<tr>
+<td><code>src/post_processing/priority_pass_analysis.py</code></td>
+<td>Manual post-processing: Priority Pass priority vs. regular vehicle breakdown (see above)</td>
+</tr>
+<tr>
+<td><code>src/post_processing/vehicle_count_comparison.py</code></td>
+<td>Manual post-processing: overlays cumulative vehicle count across multiple controllers</td>
+</tr>
+</tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "search.highlight", "content.code.copy"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
