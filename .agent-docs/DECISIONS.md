@@ -1,5 +1,109 @@
 # Architectural Decisions
 
+## ADR 2026-07-02: Remove Average Delay and Delay Variance Metrics
+
+### Status
+
+Accepted.
+
+### Context
+
+The `average_delay` and `delay_variance` metrics (added in the 2026-07-01 evaluation
+restructuring, see below) computed delay as `travel_time - min(travel_time)`, treating the
+fastest observed trip in the run as a free-flow proxy for every vehicle. This assumption does
+not hold: vehicles in the log take different routes of different lengths, so the vehicle with
+the shortest travel time is not necessarily representative of the free-flow travel time for a
+route with a different length. The computed "delay" therefore mixed genuine signal/congestion
+delay with route-length differences and had no valid traffic-engineering interpretation.
+
+### Decision
+
+Remove `average_delay` and `delay_variance` entirely:
+
+- `src/evaluation/config.py`: removed both names from `ALL_METRICS`.
+- `src/evaluation/metrics.py`: removed the `_compute_average_delay()` and
+  `_compute_delay_variance()` methods and their branches in `compute()`.
+- `src/evaluation/evaluator.py`: removed the corresponding `_print_summary()` output lines.
+- All 9 JSON configs: removed `"average_delay"` and `"delay_variance"` from the `evaluation.metrics`
+  allowlist.
+- `tests/test_metrics.py`: removed the corresponding unit tests.
+- `docs/evaluation.md`, `docs/configuration.md`, `docs/getting-started.md`, `README.md`,
+  `docs/components.md`: removed all references to these metrics.
+
+A per-route free-flow proxy (e.g. the shortest possible travel time for that specific route,
+computed independently of observed traffic) would be a valid way to reintroduce a delay metric
+in the future, but is not implemented.
+
+### Consequences
+
+- `evaluation_stats.json` no longer contains `average_delay` or `delay_variance` keys.
+- Configs listing these metric names explicitly will now raise `ValueError` from
+  `EvaluationConfig.from_dict()` (unknown metric name) — all shipped configs were updated.
+- Old logs/results generated before this change may still contain these keys; they are simply
+  not regenerated going forward.
+
+---
+
+## ADR 2026-07-01: Evaluation Restructuring — Standard Metrics Package and Post-Processing Separation
+
+### Status
+
+Accepted.
+
+### Context
+
+The original `src/evaluator.py` was tightly coupled to the Priority Pass controller: it split
+vehicles into "regular" vs. "priority" groups and used a `show_priority` flag injected from
+`run.py`. This made evaluation non-configurable (only controllable via a CLI flag) and prevented
+adding controller-agnostic standard traffic metrics cleanly.
+
+### Decision
+
+1. Replace `src/evaluator.py` with a `src/evaluation/` package containing four focused modules:
+   `config.py` (settings), `loader.py` (log reading), `metrics.py` (pure computation),
+   `plots.py` (aggregate plots), and `evaluator.py` (facade). All metrics are controller-agnostic.
+
+2. Add a top-level `evaluation` block to all JSON configs with `enabled` (bool) and `metrics`
+   (string allowlist, empty = all) fields. The `--skip-evaluation` CLI flag still overrides
+   `enabled` for convenience.
+
+3. Move the Priority Pass-specific priority vs. regular vehicle analysis to
+   `post_processing/priority_pass_analysis.py`. This is not part of the standard evaluation
+   pipeline — it is run manually after collecting PP logs.
+
+4. Add standard metrics: VKT (requires `route_distance_m` logged at vehicle departure via TraCI
+   route length query), VHT, flow, space-mean speed, density (requires `total_lane_length_m` in
+   `run_meta`), travel time variance, average delay (using min travel time as free-flow proxy),
+   delay variance. **Superseded 2026-07-02:** the average-delay/delay-variance formulas were
+   found to be incorrect for networks with routes of varying length and were removed — see the
+   2026-07-02 ADR above.
+
+5. Extend `vehicle_log.jsonl` format: departure events now include `route_distance_m` (queried
+   from `edge_lengths` cached at SUMO startup); `run_meta` includes `total_lane_length_m`
+   (filtered road-only lane lengths, excluding SUMO internal `:` junction lanes). The write of
+   `run_meta` was moved to after `_open_sumo()` so lane geometry is available.
+
+### Rationale
+
+- Controller-agnostic metrics belong in the platform; controller-specific analysis belongs in
+  post-processing — this is the correct separation of concerns.
+- `metrics=[]` enabling all metrics by default preserves backward-compatible behaviour.
+- Caching route distances at vehicle arrival (not departure) avoids TraCI query issues for
+  vehicles that have already exited the simulation network.
+- `None` for unavailable metrics (missing data) is safer than raising, since old logs should
+  still evaluate correctly for the metrics that don't need route/network data.
+
+### Consequences
+
+- `src/evaluator.py` is deleted. Code using `from evaluator import Evaluator` must update to
+  `from evaluation import Evaluator`.
+- `evaluation_stats.json` now contains more keys (new metrics). Old scripts parsing this file
+  may need to handle new keys.
+- The three standard plots are now aggregate-only (no priority split). PP-specific plots are
+  in `post_processing/priority_pass_analysis.py`.
+
+---
+
 ## ADR 2026-06-26: Baseline Mode — Zero Logic Modules
 
 ### Status

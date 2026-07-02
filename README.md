@@ -69,7 +69,7 @@ src/
   controller_priority_pass.py  Priority-pass auction controller FSM
   orchestrator.py              TCP JSON-line message router FSM
   recorder.py                  Communication logger FSM
-  evaluator.py                 Evaluation component for travel time analysis
+  evaluation/                  Standard metrics evaluation package (VKT, VHT, flow, density, ...)
 
 configurations/
   demo_sumo_baseline_config.json          Demo: no controller (SUMO default signal plans)
@@ -88,8 +88,14 @@ scenarios/demo/sumo/
   phase_*.json                 Lane-to-phase mappings
   route_*.json                 Route metadata
 
+post_processing/
+  priority_pass_analysis.py    Priority vs. regular vehicle breakdown (Priority Pass-specific)
+
 tests/
-  test_evaluator.py            Evaluator unit tests (travel time calculation)
+  test_evaluator.py            Evaluator end-to-end tests
+  test_loader.py               VehicleLogLoader unit tests
+  test_metrics.py              MetricsComputer unit tests
+  test_evaluation_config.py    EvaluationConfig unit tests
   test_controllers.py          Controller FSM, auction logic, and measurement requirement tests
   test_recorder.py             Recorder FSM, configuration, and TCP logging tests
 
@@ -338,23 +344,25 @@ python run.py --help
 
 ### Output
 
-- **Simulation logs:** `logs/{scenario}_{logic_module}/` — Set per configuration file (`recorder.logs_dir`)
-  - `vehicle_log.jsonl` — Vehicle arrivals and departures with priority status
+- **Run logs:** `logs/{scenario}_{logic_module}/` — Set per configuration file (`recorder.logs_dir`)
+  - `vehicle_log.jsonl` — Vehicle arrival/departure events with route distances and priority status
   - `communication_log.txt` — All inter-component messages
   - Example: `logs/demo_fixed_cycle/`, `logs/vienna_priority_pass/`
-- **Evaluation results:** `results/{scenario}/{logic_module}/` — Generated automatically after each run
-  - `travel_time_distribution.png` — Histogram of regular and priority vehicle travel times
-  - `average_travel_time.png` — Cumulative average travel time over simulation time
-  - `vehicle_counts.png` — Total vehicle count over simulation time
-  - `evaluation_stats.json` — Summary statistics (mean, median, min/max travel times)
+- **Evaluation results:** `results/{scenario}/{logic_module}/` — Generated automatically after each run (configurable via `evaluation.enabled` in config)
+  - `travel_time_distribution.png` — Aggregate travel time histogram
+  - `average_travel_time.png` — Cumulative average travel time over run time
+  - `vehicle_counts.png` — Total vehicle count over run time
+  - `evaluation_stats.json` — Standard metrics: travel time stats, VHT, VKT, flow, space mean speed, density, and travel time variance
   - Example: `results/demo/fixed_cycle/`, `results/vienna/priority_pass/`
 - **SUMO GUI:** Visual representation of vehicles and signal states (when `sumo-gui` is available)
 
-Pass `--skip-evaluation` to suppress post-run evaluation and visualization:
+Evaluation can be disabled via config (`evaluation.enabled: false`) or overridden per run:
 
 ```bash
 python run.py configurations/demo_sumo_fixed_cycle_config.json --skip-evaluation
 ```
+
+Controller-specific analysis (e.g. Priority Pass priority vs. regular vehicle breakdown) is available as a manual post-processing script in `post_processing/priority_pass_analysis.py`.
 
 ## Requirements
 

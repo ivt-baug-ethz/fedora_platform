@@ -9,13 +9,26 @@ fedora_platform/
 │   ├── controller_priority_pass.py – Priority Pass (Vienna pilot) controller FSM
 │   ├── orchestrator.py               – TCP JSON-line message router FSM and platform orchestrator
 │   ├── recorder.py                – TCP communication logger FSM
-│   └── evaluator.py               – Evaluation component for delay analysis and visualization
+│   └── evaluation/                – Standard evaluation package (VKT, VHT, flow, density, speed)
+│       ├── __init__.py            – Re-exports Evaluator and EvaluationConfig
+│       ├── config.py              – EvaluationConfig dataclass and metric allowlist
+│       ├── loader.py              – VehicleLogLoader: parse vehicle_log.jsonl
+│       ├── metrics.py             – MetricsComputer: pure metric computation
+│       ├── plots.py               – PlotGenerator: aggregate standard plots
+│       └── evaluator.py          – Evaluator facade (wires loader → metrics → plots)
+│
+├── post_processing/               – Controller-specific post-processing scripts (manual, not part of pipeline)
+│   ├── __init__.py
+│   └── priority_pass_analysis.py  – PriorityPassAnalysis: priority vs. regular vehicle breakdown
 │
 ├── run.py                         – Thin entry point: parses CLI args, starts Orchestrator, runs Evaluator
 │
 ├── tests/                         – Unit and integration tests
 │   ├── test_controllers.py        – Controller FSMs, auctions, config parity tests
-│   ├── test_evaluator.py          – Evaluation and travel-time analysis tests
+│   ├── test_evaluator.py          – Evaluator end-to-end tests
+│   ├── test_loader.py             – VehicleLogLoader unit tests
+│   ├── test_metrics.py            – MetricsComputer unit tests
+│   ├── test_evaluation_config.py  – EvaluationConfig unit tests
 │   └── test_recorder.py           – Recorder FSM and TCP logging tests
 │
 ├── configurations/                – Scenario configuration files (named: {scenario}_sumo_{controller}_config.json)
@@ -54,8 +67,9 @@ fedora_platform/
 ├── results/                        – Evaluation results (auto-generated, .gitignored)
 │   ├── demo/
 │   │   ├── priority_pass/         – Priority pass evaluation
-│   │   │   ├── delay_distribution.png
-│   │   │   ├── cumulative_delay.png
+│   │   │   ├── travel_time_distribution.png
+│   │   │   ├── average_travel_time.png
+│   │   │   ├── vehicle_counts.png
 │   │   │   └── evaluation_stats.json
 │   │   ├── max_pressure/
 │   │   └── fixed_cycle/
@@ -76,6 +90,7 @@ fedora_platform/
 │   ├── getting-started.md         – Installation and running scenarios
 │   ├── architecture.md            – Architecture overview and diagrams
 │   ├── components.md              – Component reference
+│   ├── evaluation.md              – Evaluation metrics, configuration, and post-processing
 │   └── configuration.md          – Configuration reference
 │
 ├── mkdocs.yml                     – MkDocs + Material configuration
@@ -161,21 +176,29 @@ fedora_platform/
 - Writes logs to `logs/` directory for post-simulation analysis
 - Implements FSM for recorder state transitions
 
-**evaluator.py**
+**evaluation/ (package)**
 
-- Post-simulation analysis component for evaluating performance
-- Reads vehicle event logs (arrivals/departures) from simulation
-- Calculates vehicle delays and separates metrics by priority status
-- Generates visualizations: delay distributions and cumulative delay over time
-- Exports evaluation statistics to JSON for further analysis
+- `config.py`: `EvaluationConfig` dataclass — which metrics to compute and whether to run; `from_dict()` validates metric names against `ALL_METRICS`
+- `loader.py`: `VehicleLogLoader` — reads `vehicle_log.jsonl`, returns `(run_meta, vehicle_records)` with only completed vehicles (both arrival and departure timestamps)
+- `metrics.py`: `MetricsComputer` — pure, I/O-free computation of VKT, VHT, flow, space-mean speed, density, travel time mean/median/min/max/variance; missing data (e.g. no `route_distance_m`) yields `None` rather than raising
+- `plots.py`: `PlotGenerator` — three aggregate plots (no priority/group split): travel time histogram, cumulative vehicle count, cumulative average travel time
+- `evaluator.py`: `Evaluator` — facade that wires loader → metrics → plots → writes `evaluation_stats.json`
+
+**post_processing/priority_pass_analysis.py**
+
+- `PriorityPassAnalysis` — manual post-processing script for Priority Pass runs
+- Reads `vehicle_log.jsonl` and splits vehicles into regular (priority=0) vs. priority (priority=1) groups
+- Computes per-group travel time statistics and generates per-group plots
+- Not part of the standard evaluation pipeline; run manually after collecting PP logs
 
 ### Entry Points
 
 **run.py**
 
-- Thin entry point (~70 lines): parses CLI arguments (`CONFIG_FILE`, `--skip-evaluation`)
-- Creates a `Orchestrator` with the full config dict and calls `start()` / `wait_until_done()`
-- Runs the `Evaluator` after the simulation completes (unless `--skip-evaluation` is passed)
+- Thin entry point: parses CLI arguments (`CONFIG_FILE`, `--skip-evaluation`, `--headless`)
+- Creates an `Orchestrator` with the full config dict and calls `start()` / `wait_until_done()`
+- Reads `config["evaluation"]` block and constructs `EvaluationConfig` to control which metrics run
+- Runs the `Evaluator` after the environment run completes unless `evaluation.enabled` is false or `--skip-evaluation` is passed (CLI flag overrides config)
 - All component lifecycle management is handled by the Orchestrator internally
 
 ### Structural Rules

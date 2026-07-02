@@ -133,6 +133,7 @@ class SumoEnvironment:
         self.vehicle_lanes: dict[str, str] = {}
         self.vehicle_lane_positions: dict[str, float] = {}
         self.lane_lengths: dict[str, float] = {}
+        self.edge_lengths: dict[str, float] = {}
         self.pending_commands: dict[str, int] = {}
 
         # synchronization events for the orchestrator step/apply handshake
@@ -155,6 +156,7 @@ class SumoEnvironment:
         self.vehicle_log_path: Path = Path("logs/vehicle_log.jsonl")
         self.vehicle_log_lock = threading.Lock()
         self.vehicle_arrivals: dict[str, float] = {}
+        self.vehicle_route_distances: dict[str, float] = {}
         self.vehicle_log_enabled: bool = True
 
         # state reporting config and caches for TraCI-fetched fields (populated in _run_step)
@@ -287,6 +289,9 @@ class SumoEnvironment:
         if self.state == self.STATE_CONFIGURED:
             self._open_server()
 
+            # open SUMO first so lane/edge lengths are available for the log header
+            self._open_sumo()
+
             if self.vehicle_log_enabled:
                 # open vehicle log in write mode to start fresh for each run
                 self.vehicle_log_file = self.vehicle_log_path.open(
@@ -294,8 +299,6 @@ class SumoEnvironment:
                 )
                 self._write_vehicle_log_meta()
 
-            # launch SUMO process; sends environment_started to kick off the loop
-            self._open_sumo()
             self._transition("prepare")
 
         self._transition("start")
@@ -590,12 +593,22 @@ class SumoEnvironment:
         traci.start(command, label=self.sumo_label)
         self.connection = traci.getConnection(self.sumo_label)
 
-        # Cache lane lengths upfront to avoid per-step TraCI round-trips
+        # Cache lane and edge lengths upfront to avoid per-step TraCI round-trips
         assert self.connection is not None
         self.lane_lengths = {
             lane: float(self.connection.lane.getLength(lane))
             for lane in self.connection.lane.getIDList()
         }
+        # Derive edge lengths from lane lengths — all lanes of an edge share the same length.
+        # lane.getEdgeID() maps each lane to its parent edge (TraCI variable 0x31).
+        # Internal junction lanes (ids starting with ":") are excluded; they never appear
+        # in vehicle routes so they would only skew distance totals.
+        self.edge_lengths = {}
+        for lane_id, length in self.lane_lengths.items():
+            if not lane_id.startswith(":"):
+                edge_id = self.connection.lane.getEdgeID(lane_id)
+                if edge_id not in self.edge_lengths:
+                    self.edge_lengths[edge_id] = length
 
         self._send_message(
             "logic_module", "environment_started", {"label": self.sumo_label}
@@ -743,6 +756,14 @@ class SumoEnvironment:
         # vehicles in current but not previous → newly entered the network
         for vehicle_id in current_ids - previous_ids:
             self.vehicle_arrivals[vehicle_id] = self.time
+            # store route distance now while the vehicle is still queryable via TraCI
+            try:
+                route_edges = self.connection.vehicle.getRoute(vehicle_id)
+                self.vehicle_route_distances[vehicle_id] = sum(
+                    self.edge_lengths.get(e, 0.0) for e in route_edges
+                )
+            except Exception:  # pylint: disable=broad-except
+                pass
             self._log_vehicle_event(vehicle_id, "arrival", self.time)
 
         # vehicles in previous but not current → left the network this step
@@ -929,6 +950,12 @@ class SumoEnvironment:
 
     def _write_vehicle_log_meta(self) -> None:
         """Write a run_meta header as the first record of vehicle_log.jsonl."""
+        # exclude internal SUMO junction lanes (IDs starting with ":") from road length
+        total_lane_length_m = sum(
+            length
+            for lane_id, length in self.lane_lengths.items()
+            if not lane_id.startswith(":")
+        )
         meta = {
             "type": "run_meta",
             "scenario": self.configuration.get("settings", {}).get("label", "unknown"),
@@ -938,6 +965,7 @@ class SumoEnvironment:
             "random_seed": int(
                 self.configuration.get("settings", {}).get("random_seed", 42)
             ),
+            "total_lane_length_m": total_lane_length_m,
         }
         with self.vehicle_log_lock:
             if self.vehicle_log_file is not None:
@@ -981,12 +1009,14 @@ class SumoEnvironment:
             event_type: "arrival" or "departure".
             event_time: Simulation time of the event in seconds.
         """
-        record = {
+        record: dict[str, Any] = {
             "vehicle_id": vehicle_id,
             "event_type": event_type,
             "time": event_time,
             "priority": self.vehicle_upp.get(vehicle_id, 0),
         }
+        if event_type == "departure" and vehicle_id in self.vehicle_route_distances:
+            record["route_distance_m"] = self.vehicle_route_distances.pop(vehicle_id)
         with self.vehicle_log_lock:
             if self.vehicle_log_file is not None:
                 self.vehicle_log_file.write(json.dumps(record) + "\n")

@@ -1,6 +1,48 @@
 # Active Context
 
-## Current Status (2026-06-30) — CI Workflow + Headless SUMO
+## Current Status (2026-07-02) — Edge Length Bugfix, Generic Environment Wording, Delay Metric Removal
+
+Three follow-up fixes on top of the evaluation extension:
+
+- **Fixed startup crash**: `_open_sumo()` called `traci.edge.getLength()`, which does not exist
+  on TraCI's `EdgeDomain`. Edge lengths are now derived from the already-cached `lane_lengths`
+  via `connection.lane.getEdgeID(lane_id)` (first lane seen per edge wins; internal `:` lanes
+  excluded). Verified against official TraCI docs via context7.
+- **Generalized wording**: evaluation docs, docstrings, and comments now speak of "the
+  environment run" rather than "the simulation" or SUMO specifically, consistent with the
+  pluggable environment slot (SUMO today, but any simulation or real-world pilot environment
+  implementing the `step`/`apply_and_advance` contract in the future). Scoped to the evaluation
+  feature's docs/code; SUMO-specific demonstrator content elsewhere was left as-is.
+- **Removed `average_delay` and `delay_variance` metrics**: the formula
+  `travel_time - min(observed travel_time)` incorrectly assumed the fastest observed vehicle's
+  trip was a valid free-flow proxy for every vehicle, which breaks when vehicles take routes of
+  different lengths. Removed from `ALL_METRICS`, `MetricsComputer`, `Evaluator._print_summary`,
+  all 9 config files, tests, and all docs. See ADR 2026-07-02 in `DECISIONS.md`.
+
+## Previous Status (2026-07-01) — Evaluation Extension: Standard Metrics Package
+
+Replaced `src/evaluator.py` with a proper `src/evaluation/` package and added standard
+traffic-engineering metrics. Key changes:
+
+- **`src/evaluation/` package**: `config.py` (EvaluationConfig with enabled/metrics fields),
+  `loader.py` (VehicleLogLoader), `metrics.py` (MetricsComputer — VKT, VHT, flow, density,
+  speed, travel time variance, average delay, delay variance), `plots.py` (PlotGenerator,
+  aggregate only — no priority split), `evaluator.py` (facade).
+- **`post_processing/priority_pass_analysis.py`**: extracted PP-specific priority vs. regular
+  vehicle analysis from old `evaluator.py`; run manually, not part of the pipeline.
+- **`src/evaluator.py` deleted**.
+- **`environment_sumo.py` extended**: edge_lengths cached at startup; route_distance_m captured
+  at vehicle arrival (via cached edge_lengths + vehicle.getRoute()); total_lane_length_m added to
+  run_meta; start() reordered so run_meta is written after _open_sumo() (SUMO must be up first
+  to have lane/edge lengths).
+- **All 9 configs**: `evaluation` block with `"enabled": true` and all 9 metrics explicitly listed (travel_time, travel_time_variance, average_delay, delay_variance, vht, vkt, flow, speed, density).
+- **`run.py` updated**: reads evaluation config, builds EvaluationConfig, removed show_priority.
+- **Docs**: new `docs/evaluation.md` (added to mkdocs.yml nav), updated components.md,
+  configuration.md, getting-started.md, README.md.
+- **Tests**: 107 total (up from 80); new test_loader.py (7), test_metrics.py (13),
+  test_evaluation_config.py (6); test_evaluator.py updated to new API.
+
+## Previous Status (2026-06-30) — CI Workflow + Headless SUMO
 
 Added GitHub Actions CI workflow that installs SUMO (Ubuntu PPA) and runs all 9 scenarios
 headlessly. Changes:

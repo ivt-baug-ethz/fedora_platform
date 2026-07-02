@@ -90,8 +90,10 @@ The `--headless` flag switches to the `binary_headless` value in `environment.se
 | Path                                                             | Contents                         |
 | ---------------------------------------------------------------- | -------------------------------- |
 | `logs/{scenario}_{logic_module}/communication_log.txt`           | All inter-component TCP messages |
-| `logs/{scenario}_{logic_module}/vehicle_log.jsonl`               | Vehicle arrival/departure events |
-| `results/{scenario}/{logic_module}/travel_time_distribution.png` | Travel time histogram            |
+| `logs/{scenario}_{logic_module}/vehicle_log.jsonl`               | Vehicle arrival/departure events (with `route_distance_m` per vehicle and `total_lane_length_m` in the run header) |
+| `results/{scenario}/{logic_module}/travel_time_distribution.png` | Travel time histogram (aggregate) |
 | `results/{scenario}/{logic_module}/average_travel_time.png`      | Cumulative average travel time   |
 | `results/{scenario}/{logic_module}/vehicle_counts.png`           | Total vehicle count over time    |
-| `results/{scenario}/{logic_module}/evaluation_stats.json`        | Summary statistics               |
+| `results/{scenario}/{logic_module}/evaluation_stats.json`        | Standard metrics: travel time stats, VHT, VKT, flow, speed, density, travel time variance |
+
+See [Evaluation](evaluation.md) for a description of all computed metrics and how to configure or disable evaluation.

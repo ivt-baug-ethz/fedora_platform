@@ -33,6 +33,7 @@ nav:
   - Getting Started: getting-started.md
   - Architecture: architecture.md
   - Components: components.md
+  - Evaluation: evaluation.md
   - Configuration: configuration.md
 
 plugins:
