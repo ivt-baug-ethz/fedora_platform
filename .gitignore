@@ -222,9 +222,15 @@ __marimo__/
 # Mac
 .DS_Store
 
-# LLMs
-.agent-docs/scratchpad.md
-.claude/
+# AI agent tracking logs (local, not committed)
+.ai/
+
+# Serena: commit project.yml + memories, ignore the local language-server cache
+.serena/cache/
+
+# Claude Code: commit shared settings.json + hooks; ignore local-only overrides
+.claude/settings.local.json
+.claude/worktrees/
 
 # MkDocs build output
 site/

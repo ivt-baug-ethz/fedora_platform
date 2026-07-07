@@ -1,5 +1,12 @@
 # Architectural Decisions
 
+This is the **committed** architectural decision record (ADRs) for the FEDORA Platform — the
+tracked home for the design *discussions* behind the current architecture, newest first. Append a
+new ADR here (via serena's `write_memory`) whenever a non-obvious or systematic choice is made;
+never delete past entries. Distilled reference facts live in the other memories (see
+`mem:system_patterns`, `mem:codebase_structure`); the day-to-day changelog is the local
+`.ai/PROGRESS.md`. See `mem:ai_tracking_system` for the split.
+
 ## ADR 2026-07-07: Decouple Vehicle-State Logging from the Environment (Recorder Owns `vehicle_log.jsonl`)
 
 ### Status

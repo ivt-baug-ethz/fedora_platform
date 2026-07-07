@@ -99,21 +99,13 @@ tests/
   test_controllers.py          Controller FSM, auction logic, and measurement requirement tests
   test_recorder.py             Recorder FSM, configuration, and TCP logging tests
 
-.agent-docs/
-  STRUCTURE.md                 Directory structure and module responsibilities
-  DECISIONS.md                 Architectural decision records
-  INTEGRATIONS.md              External tool integration guides
-  scratchpad.md                Session working notes
-
 docs/
   index.md                     Home page (deployed to GitHub Pages)
   getting-started.md           Setup and installation guide
   architecture.md              Architecture overview
   components.md                Component reference
   configuration.md             Configuration reference
-
-.memory-bank/
-  Persistent project context (see CLAUDE.md for guidelines)
+  evaluation.md                Evaluation metrics and post-processing
 ```
 
 ## Architecture
@@ -420,7 +412,7 @@ The documentation source lives in `docs/` and is automatically deployed to GitHu
 
 ## Development
 
-Update the README when making code changes. See `CLAUDE.md` and `AGENTS.md` for guidance on keeping documentation in sync with implementation.
+Update the README and the user-facing documentation in `docs/` when making code changes, keeping them in sync with the implementation.
 
 Running the test suite:
 
