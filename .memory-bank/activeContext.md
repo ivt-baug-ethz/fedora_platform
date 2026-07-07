@@ -1,6 +1,33 @@
 # Active Context
 
-## Current Status (2026-07-02) — Edge Length Bugfix, Generic Environment Wording, Delay Metric Removal, post_processing/ Move, Vehicle Count Comparison Script
+## Current Status (2026-07-07) — Decouple Vehicle-State Logging from the Environment
+
+The environment previously wrote `logs/vehicle_log.jsonl` **directly** — the only file it wrote
+and the sole coupling between the platform's evaluation and the simulation environment. That state
+now flows through the standard pipeline so evaluation is fully decoupled from the environment:
+
+- **Environment** (`environment_sumo.py`): detects arrivals/departures + route distances (TraCI)
+  and **reports** them via `vehicle_log_meta` / `vehicle_event` messages to the Orchestrator. All
+  direct file handling removed. Config flag `vehicle_log_enabled` → `report_vehicle_events`.
+- **Orchestrator**: `_route` intercepts those topics and forwards them to the Recorder as
+  `vehicle_log` messages (`_record_vehicle_event`); kept out of the communication log. No longer
+  injects `logs_dir` into the environment. `report_vehicle_events = recorder_active AND
+  vehicle_log_enabled`.
+- **Recorder**: owns `vehicle_log.jsonl` — opens it fresh per run (when `vehicle_log_enabled`) and
+  writes each `vehicle_log` payload verbatim. On-disk format is byte-identical to before, so
+  `VehicleLogLoader` / `Evaluator` / post-processing are unchanged.
+- Behavior change: the vehicle log now requires the Recorder to be enabled (previously the env
+  wrote it even with `recorder.enabled: false`). Verified end-to-end on the demo scenario
+  (headless SUMO) + Evaluator run. See ADR 2026-07-07 in `DECISIONS.md`.
+- Vehicle-log byte-format preserved: `_send_message`/`_forward` take `sort_keys` (default True);
+  the vehicle-log path passes `sort_keys=False` so `vehicle_log.jsonl` keeps its original,
+  non-alphabetical key order (byte-identical to before).
+- `run.py` now auto-runs `PriorityPassAnalysis` (post-processing) for `controller_priority_pass`
+  configs, restoring the prioritized-vs-non-prioritized plots (`pp_*.png`) that the earlier
+  evaluation refactor (`5fc39a7`) had dropped from the automatic run. Post-processing code and
+  vehicle-log storage were unchanged — only the auto-invocation was re-added.
+
+## Previous Status (2026-07-02) — Edge Length Bugfix, Generic Environment Wording, Delay Metric Removal, post_processing/ Move, Vehicle Count Comparison Script
 
 Five follow-up changes on top of the evaluation extension:
 

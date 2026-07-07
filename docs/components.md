@@ -38,6 +38,7 @@ Implements the `"sumo"` environment type using SUMO/TraCI. Manages the SUMO proc
 - Collect queue lengths, vehicle positions, and signal states
 - Apply commands received via `apply_and_advance`
 - Spawn vehicles and manage simulation time
+- Detect vehicle arrivals/departures and **report** them to the Orchestrator (via `vehicle_event` / `vehicle_log_meta` messages) — the environment itself writes no log files; persistence is the Recorder's responsibility, keeping evaluation fully decoupled from the environment
 
 **Configuration key:** `"type": "sumo"` in the `"environment"` config block.
 
@@ -76,12 +77,12 @@ The Recorder is only instantiated when a `"recorder"` port is present in `commun
 **Output:**
 
 - `logs/{run_label}/communication_log.txt` — inter-component messages (first line is always a `run_meta` record describing the run)
-- `logs/{run_label}/vehicle_log.jsonl` — vehicle arrival/departure events (when `vehicle_log_enabled: true`)
+- `logs/{run_label}/vehicle_log.jsonl` — vehicle arrival/departure events (when `vehicle_log_enabled: true`). These records are **reported by the environment and collected by the Orchestrator**, then written here by the Recorder; the environment never touches the file. This keeps vehicle-state tracking (used by the evaluation package) out of the simulation component.
 
 **Configurable logging:**
 
 - **Topic filter** (`topics`): an allowlist of message topics to record. Leave empty to capture all traffic; set to a non-empty list (e.g. `["traffic_state", "logic_command"]`) to reduce log volume.
-- **Vehicle log** (`vehicle_log_enabled`): disabling this skips `vehicle_log.jsonl` and suppresses the post-run Evaluator.
+- **Vehicle log** (`vehicle_log_enabled`): disabling this skips `vehicle_log.jsonl` and suppresses the post-run Evaluator. Because the Recorder now owns this file, the vehicle log also requires the Recorder to be enabled — with `recorder.enabled: false` the environment reports no vehicle events and no `vehicle_log.jsonl` is produced.
 - **State polling**: when the Orchestrator polls component state, the resulting `state_report` messages are forwarded to the Recorder and subject to the same topic filter. Enable specific state fields in the `recorder.state_polling` config to capture them — no changes to recorder configuration are needed beyond setting the desired attributes to `true`.
 
 ## Evaluation (`src/evaluation/`)

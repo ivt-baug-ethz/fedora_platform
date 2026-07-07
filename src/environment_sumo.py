@@ -12,7 +12,7 @@ import threading
 import time
 import warnings
 from pathlib import Path
-from typing import Any, TextIO
+from typing import Any
 
 import traci
 
@@ -151,13 +151,11 @@ class SumoEnvironment:
         self._orchestrator_connection: socket.socket | None = None
         self._orchestrator_lock = threading.Lock()
 
-        # vehicle event log
-        self.vehicle_log_file: TextIO | None = None
-        self.vehicle_log_path: Path = Path("logs/vehicle_log.jsonl")
-        self.vehicle_log_lock = threading.Lock()
+        # vehicle event tracking — arrivals/departures are detected here but persisted
+        # by the recorder; the environment only reports them to the orchestrator
         self.vehicle_arrivals: dict[str, float] = {}
         self.vehicle_route_distances: dict[str, float] = {}
-        self.vehicle_log_enabled: bool = True
+        self.report_vehicle_events: bool = True
 
         # state reporting config and caches for TraCI-fetched fields (populated in _run_step)
         self._state_cfg: dict[str, bool] = {}
@@ -241,7 +239,8 @@ class SumoEnvironment:
         # Vehicle RGBA colors keyed by category ("regular", "priority_pass", ...)
         colors = dict(visualization.get("vehicle_colors", {}))
         self.vehicle_colors = {
-            name: tuple(int(c) for c in rgba) for name, rgba in colors.items()
+            name: (int(rgba[0]), int(rgba[1]), int(rgba[2]), int(rgba[3]))
+            for name, rgba in colors.items()
         }
 
         self.sensor_distance = float(measurement_details.get("sensor_distance", 100.0))
@@ -259,13 +258,10 @@ class SumoEnvironment:
             self.configuration.get("controller_response_timeout_seconds", 0.05)
         )
 
-        # Prepare the vehicle event log in the recorder's log directory
-        logs_dir = self.configuration.get("logs_dir", "logs")
-        os.makedirs(logs_dir, exist_ok=True)
-        self.vehicle_log_path = Path(logs_dir) / "vehicle_log.jsonl"
-
-        self.vehicle_log_enabled = bool(
-            self.configuration.get("vehicle_log_enabled", True)
+        # whether to report vehicle arrival/departure events to the orchestrator, which
+        # forwards them to the recorder for persistence (decoupled from the simulation)
+        self.report_vehicle_events = bool(
+            self.configuration.get("report_vehicle_events", True)
         )
         self._state_cfg = dict(self.configuration.get("state_cfg", {}))
         unsupported = [
@@ -292,12 +288,9 @@ class SumoEnvironment:
             # open SUMO first so lane/edge lengths are available for the log header
             self._open_sumo()
 
-            if self.vehicle_log_enabled:
-                # open vehicle log in write mode to start fresh for each run
-                self.vehicle_log_file = self.vehicle_log_path.open(
-                    "w", encoding="utf-8"
-                )
-                self._write_vehicle_log_meta()
+            if self.report_vehicle_events:
+                # publish run metadata so the recorder can write the vehicle-log header
+                self._send_vehicle_log_meta()
 
             self._transition("prepare")
 
@@ -334,8 +327,6 @@ class SumoEnvironment:
             except (AttributeError, OSError):
                 pass
             self.connection = None
-        if self.vehicle_log_file is not None:
-            self.vehicle_log_file.close()
         self._transition("stop")
 
     def wait_until_done(self) -> None:
@@ -764,12 +755,12 @@ class SumoEnvironment:
                 )
             except Exception:  # pylint: disable=broad-except
                 pass
-            self._log_vehicle_event(vehicle_id, "arrival", self.time)
+            self._emit_vehicle_event(vehicle_id, "arrival", self.time)
 
         # vehicles in previous but not current → left the network this step
         for vehicle_id in previous_ids - current_ids:
             if vehicle_id in self.vehicle_arrivals:
-                self._log_vehicle_event(vehicle_id, "departure", self.time)
+                self._emit_vehicle_event(vehicle_id, "departure", self.time)
                 del self.vehicle_arrivals[vehicle_id]
 
     def _update_vehicle_positions(self) -> None:
@@ -948,8 +939,13 @@ class SumoEnvironment:
         for traffic_light, phase_signal in commands.items():
             self.connection.trafficlight.setPhase(traffic_light, phase_signal)
 
-    def _write_vehicle_log_meta(self) -> None:
-        """Write a run_meta header as the first record of vehicle_log.jsonl."""
+    def _send_vehicle_log_meta(self) -> None:
+        """Publish the vehicle-log run metadata to the orchestrator for the recorder.
+
+        The recorder writes this as the ``run_meta`` header of ``vehicle_log.jsonl``.
+        Lane geometry is only available here (via TraCI), so the environment assembles
+        the metadata and reports it rather than persisting it directly.
+        """
         # exclude internal SUMO junction lanes (IDs starting with ":") from road length
         total_lane_length_m = sum(
             length
@@ -967,10 +963,8 @@ class SumoEnvironment:
             ),
             "total_lane_length_m": total_lane_length_m,
         }
-        with self.vehicle_log_lock:
-            if self.vehicle_log_file is not None:
-                self.vehicle_log_file.write(json.dumps(meta) + "\n")
-                self.vehicle_log_file.flush()
+        # keep original key order so the recorder's vehicle_log.jsonl header is unchanged
+        self._send_message("orchestrator", "vehicle_log_meta", meta, sort_keys=False)
 
     def _send_state_report(self) -> None:
         """Respond to a get_state request with a snapshot of configured environment state."""
@@ -999,10 +993,14 @@ class SumoEnvironment:
             state["vehicle_waiting_times"] = dict(self._cached_vehicle_waiting_times)
         self._send_message("orchestrator", "state_report", state)
 
-    def _log_vehicle_event(
+    def _emit_vehicle_event(
         self, vehicle_id: str, event_type: str, event_time: float
     ) -> None:
-        """Append a vehicle arrival or departure record to the JSONL log file.
+        """Report a vehicle arrival or departure to the orchestrator for logging.
+
+        The orchestrator forwards the event to the recorder, which appends it to
+        ``vehicle_log.jsonl``. This keeps evaluation-relevant state collection out of
+        the simulation environment.
 
         Args:
             vehicle_id: SUMO vehicle ID.
@@ -1015,20 +1013,29 @@ class SumoEnvironment:
             "time": event_time,
             "priority": self.vehicle_upp.get(vehicle_id, 0),
         }
+        # pop the cached route distance regardless of reporting so state does not leak
         if event_type == "departure" and vehicle_id in self.vehicle_route_distances:
             record["route_distance_m"] = self.vehicle_route_distances.pop(vehicle_id)
-        with self.vehicle_log_lock:
-            if self.vehicle_log_file is not None:
-                self.vehicle_log_file.write(json.dumps(record) + "\n")
-                self.vehicle_log_file.flush()
+        if self.report_vehicle_events:
+            # keep original key order so the recorder's vehicle_log.jsonl is unchanged
+            self._send_message("orchestrator", "vehicle_event", record, sort_keys=False)
 
-    def _send_message(self, target: str, topic: str, payload: dict[str, Any]) -> None:
+    def _send_message(
+        self,
+        target: str,
+        topic: str,
+        payload: dict[str, Any],
+        sort_keys: bool = True,
+    ) -> None:
         """Serialize and send a JSON-line message to the orchestrator.
 
         Args:
             target: Destination component name (e.g. "logic_module").
             topic: Message topic string.
             payload: Message payload dict.
+            sort_keys: Whether to sort keys when serializing. Defaults to True for
+                stable message envelopes; pass False for vehicle-log payloads so the
+                recorder persists them in their original schema order.
         """
         message = {
             "sender": self.NAME,
@@ -1037,7 +1044,7 @@ class SumoEnvironment:
             "sent_at": time.time(),
             "payload": payload,
         }
-        encoded = json.dumps(message, sort_keys=True).encode("utf-8") + b"\n"
+        encoded = json.dumps(message, sort_keys=sort_keys).encode("utf-8") + b"\n"
 
         with self._orchestrator_lock:
             try:
