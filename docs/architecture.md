@@ -131,7 +131,9 @@ All messages use a JSON-line envelope over TCP:
 | `get_state`                                   | Orchestrator → Environment / Logic Module(s)   | Request a snapshot of internal state (sent when state polling is active)            |
 | `state_report`                                | Environment / Logic Module(s) → Orchestrator   | Response to `get_state`; contains only the fields enabled in `state_polling` config |
 | `environment_started` / `environment_stopped` | Environment → Orchestrator                     | Lifecycle signals                                                                   |
+| `vehicle_log_meta` / `vehicle_event`          | Environment → Orchestrator                     | Vehicle-log run header and per-vehicle arrival/departure events (simulation state the environment reports instead of writing to disk) |
 | `communication`                               | Orchestrator → Recorder                        | Mirror of all routed messages (including `state_report` responses)                  |
+| `vehicle_log`                                 | Orchestrator → Recorder                        | Collected vehicle-log payloads, written verbatim to `vehicle_log.jsonl`             |
 
 ## Communication Layer
 

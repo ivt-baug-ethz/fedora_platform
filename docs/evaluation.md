@@ -87,11 +87,13 @@ Some metrics require additional data in `vehicle_log.jsonl` that the environment
 must populate:
 
 - **`vkt` and `space_mean_speed`** require `route_distance_m` in departure events.  
-  Written by the environment when a vehicle exits, based on the distance it travelled through
-  the network. The bundled SUMO environment (`src/environment_sumo.py`) queries this from TraCI
-  at vehicle arrival, while the route is still resolvable, and caches it until departure. Logs
-  produced before this feature was added, or written by an environment that does not populate
-  this field, will yield `null` for these metrics.
+  Reported by the environment when a vehicle exits, based on the distance it travelled through
+  the network, and written to `vehicle_log.jsonl` by the Recorder (the environment reports
+  vehicle events to the Orchestrator rather than writing the file itself). The bundled SUMO
+  environment (`src/environment_sumo.py`) queries this from TraCI at vehicle arrival, while the
+  route is still resolvable, and caches it until departure. Logs produced before this feature
+  was added, or written by an environment that does not populate this field, will yield `null`
+  for these metrics.
 
 - **`density`** requires `total_lane_length_m` in the `run_meta` header.  
   Written at run start from the environment's road network length. In the bundled SUMO
@@ -122,15 +124,17 @@ All outputs are written to `results/{scenario}/{logic_module_type}/`:
 ### Controller-Specific Analysis
 
 Some analyses are specific to a particular controller and are not part of the standard
-evaluation pipeline. These live in the `src/post_processing/` package and are run manually
-after collecting logs.
+(controller-agnostic) evaluation pipeline. These live in the `src/post_processing/` package.
+The Priority Pass analysis runs **automatically** from `run.py` whenever the active logic module
+is `controller_priority_pass` (unless `--skip-evaluation` is passed); all post-processing scripts
+can also be run manually after collecting logs.
 
 **Available post-processing scripts:**
 
-| Script | Controller | Description |
-|---|---|---|
-| `src/post_processing/priority_pass_analysis.py` | Priority Pass | Priority vs. regular vehicle comparison (travel time, counts, averages per group) |
-| `src/post_processing/vehicle_count_comparison.py` | Any (multiple) | Overlays cumulative vehicle count over time for several logic modules on one plot |
+| Script | Controller | Description | Auto-run by `run.py` |
+|---|---|---|---|
+| `src/post_processing/priority_pass_analysis.py` | Priority Pass | Priority vs. regular vehicle comparison (travel time, counts, averages per group) | Yes (for `controller_priority_pass` runs) |
+| `src/post_processing/vehicle_count_comparison.py` | Any (multiple) | Overlays cumulative vehicle count over time for several logic modules on one plot | No (manual — spans multiple runs) |
 
 **CLI usage** — reads `recorder.logs_dir` from a scenario config and writes to
 `results/{scenario}/{logic_module}/` — the same directory the standard evaluation output uses;

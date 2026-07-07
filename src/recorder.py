@@ -70,6 +70,12 @@ class Recorder:
         self.log_path: Path = Path(".")
         self.log_file: TextIO | None = None
 
+        # vehicle event log — a dedicated JSONL sink fed by the orchestrator, holding the
+        # simulation state (arrivals/departures) that the evaluation package consumes
+        self.vehicle_log_path: Path = Path(".")
+        self.vehicle_log_file: TextIO | None = None
+        self.vehicle_log_lock = threading.Lock()
+
         # logging filter settings (populated in configure())
         self.topics: set[str] = set()
         self.vehicle_log_enabled: bool = True
@@ -112,6 +118,7 @@ class Recorder:
         os.makedirs(logs_dir_raw, exist_ok=True)
         self.logs_dir = Path(logs_dir_raw)
         self.log_path = self.logs_dir / "communication_log.txt"
+        self.vehicle_log_path = self.logs_dir / "vehicle_log.jsonl"
 
         return self
 
@@ -124,6 +131,13 @@ class Recorder:
             # open log file in append mode so previous runs are preserved
             self.log_file = self.log_path.open("a", encoding="utf-8")
             self._write_run_meta()
+
+            # the vehicle log starts fresh each run; its run_meta header and event
+            # records arrive from the environment via the orchestrator
+            if self.vehicle_log_enabled:
+                self.vehicle_log_file = self.vehicle_log_path.open(
+                    "w", encoding="utf-8"
+                )
             self._open_server()
             self._transition("prepare")
 
@@ -139,9 +153,11 @@ class Recorder:
         if self.server_socket is not None:
             self.server_socket.close()
 
-        # flush and close the log file
+        # flush and close the log files
         if self.log_file is not None:
             self.log_file.close()
+        if self.vehicle_log_file is not None:
+            self.vehicle_log_file.close()
 
         self._transition("stop")
 
@@ -244,6 +260,12 @@ class Recorder:
             message: Decoded JSON message dict to persist. Messages arrive wrapped in the
                 orchestrator envelope; the topic filter inspects the inner payload topic.
         """
+        # vehicle-log messages carry simulation state collected by the orchestrator and
+        # are written verbatim to the dedicated vehicle log, bypassing the topic filter
+        if message.get("topic") == "vehicle_log":
+            self._record_vehicle_event(message.get("payload", {}))
+            return
+
         inner_topic = message.get("payload", {}).get("topic", "")
         if self.topics and inner_topic not in self.topics:
             return
@@ -257,3 +279,17 @@ class Recorder:
             # flush immediately so records survive an unclean process exit
             self.log_file.write(json.dumps(record, sort_keys=True) + "\n")
             self.log_file.flush()
+
+    def _record_vehicle_event(self, payload: dict[str, Any]) -> None:
+        """Append a vehicle event or run_meta record to ``vehicle_log.jsonl``.
+
+        Args:
+            payload: Vehicle-log record to persist — an arrival/departure event or the
+                run metadata header assembled by the environment.
+        """
+        with self.vehicle_log_lock:
+            if self.vehicle_log_file is None:
+                return
+            # flush immediately so records survive an unclean process exit
+            self.vehicle_log_file.write(json.dumps(payload) + "\n")
+            self.vehicle_log_file.flush()

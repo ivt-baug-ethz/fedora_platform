@@ -11,11 +11,11 @@
 
 **Orchestrator-driven components (in `src/`):**
 - `orchestrator.py` — Platform orchestrator FSM: reads full config, creates/starts all sub-components, drives environment step loop via `"step"` / `"apply_and_advance"` messages; dispatches environment class via `_ENVIRONMENT_TYPES`; optionally polls component state after each step and forwards `state_report` to recorder
-- `environment_sumo.py` — `SumoEnvironment` (`NAME = "environment"`): passive SUMO/TraCI FSM, waits for `"step"` from Orchestrator, measurement types injected (not config-driven); `get_state` handler with lazy TraCI caching; `vehicle_log_enabled` guard
+- `environment_sumo.py` — `SumoEnvironment` (`NAME = "environment"`): passive SUMO/TraCI FSM, waits for `"step"` from Orchestrator, measurement types injected (not config-driven); `get_state` handler with lazy TraCI caching; **reports** vehicle arrival/departure events via `vehicle_log_meta` / `vehicle_event` messages (gated by injected `report_vehicle_events`) instead of writing any log file itself
 - `controller_fixed_cycle.py` — Fixed-cycle controller FSM; `get_required_measurements()` returns `[]`; `get_state` handler returns step/light_states
 - `controller_max_pressure.py` — Max-pressure controller FSM; `get_required_measurements()` returns queue metric based on bidding_strategy; `get_state` handler returns bids/phase_switched
 - `controller_priority_pass.py` — Priority Pass controller FSM; `get_required_measurements()` returns queue metric + `"upp_bids"`; `get_state` handler returns queue/upp/blended bids + tau
-- `recorder.py` — TCP communication logger FSM writing to `logs/`; configurable via `topics`, `vehicle_log_enabled`; writes `run_meta` header on start; always functional when instantiated (enabled/disabled decision belongs to orchestrator)
+- `recorder.py` — TCP communication logger FSM writing to `logs/`; configurable via `topics`, `vehicle_log_enabled`; writes `run_meta` header on start; **sole owner of `vehicle_log.jsonl`** — writes `vehicle_log`-topic payloads (forwarded by the orchestrator from environment-reported events) verbatim to that file, fresh per run; always functional when instantiated (enabled/disabled decision belongs to orchestrator)
 
 **TCP communication (fixed 2026-06-25):**
 - All senders (`Orchestrator._forward`, `SumoEnvironment._send_message`, `*Controller._send_message`) use persistent connections — created on first use, reused per target, reset on OSError

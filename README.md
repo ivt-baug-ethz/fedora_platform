@@ -196,7 +196,9 @@ Topics define the message contract:
 - `"step"` — Orchestrator → Environment: begin next state-collection iteration
 - `"apply_and_advance"` — Orchestrator → Environment: apply the merged logic commands and advance the environment by one step
 - `"environment_started"` / `"environment_stopped"` — Environment → Orchestrator: lifecycle signals
+- `"vehicle_log_meta"` / `"vehicle_event"` — Environment → Orchestrator: vehicle-log run header and per-vehicle arrival/departure events. The environment reports this simulation state instead of writing any log file itself, so evaluation stays decoupled from the environment.
 - `"communication"` — Orchestrator → Recorder: mirror of all routed messages
+- `"vehicle_log"` — Orchestrator → Recorder: collected vehicle events, written to `vehicle_log.jsonl`
 
 ## System Flowchart
 
@@ -345,7 +347,7 @@ python run.py --help
 ### Output
 
 - **Run logs:** `logs/{scenario}_{logic_module}/` — Set per configuration file (`recorder.logs_dir`)
-  - `vehicle_log.jsonl` — Vehicle arrival/departure events with route distances and priority status
+  - `vehicle_log.jsonl` — Vehicle arrival/departure events with route distances and priority status (reported by the environment, collected by the Orchestrator, and written by the Recorder — the environment writes no files itself)
   - `communication_log.txt` — All inter-component messages
   - Example: `logs/demo_fixed_cycle/`, `logs/vienna_priority_pass/`
 - **Evaluation results:** `results/{scenario}/{logic_module}/` — Generated automatically after each run (configurable via `evaluation.enabled` in config)
@@ -353,6 +355,7 @@ python run.py --help
   - `average_travel_time.png` — Cumulative average travel time over run time
   - `vehicle_counts.png` — Total vehicle count over run time
   - `evaluation_stats.json` — Standard metrics: travel time stats, VHT, VKT, flow, space mean speed, density, and travel time variance
+  - For Priority Pass runs, the controller-specific post-processing is also run automatically, adding prioritized vs. non-prioritized breakdowns: `pp_travel_time_distribution.png`, `pp_vehicle_counts.png`, `pp_average_travel_time.png`, and `pp_analysis_stats.json`
   - Example: `results/demo/fixed_cycle/`, `results/vienna/priority_pass/`
 - **SUMO GUI:** Visual representation of vehicles and signal states (when `sumo-gui` is available)
 
@@ -362,7 +365,7 @@ Evaluation can be disabled via config (`evaluation.enabled: false`) or overridde
 python run.py configurations/demo_sumo_fixed_cycle_config.json --skip-evaluation
 ```
 
-Controller-specific analysis (e.g. Priority Pass priority vs. regular vehicle breakdown) is available as a manual post-processing script in `src/post_processing/priority_pass_analysis.py`:
+Controller-specific analysis (e.g. Priority Pass priority vs. regular vehicle breakdown) lives in the `src/post_processing/` package. For Priority Pass configurations it runs **automatically** as part of the `run.py` demonstrator script (unless `--skip-evaluation` is passed), and can also be run manually against any completed run:
 
 ```bash
 python src/post_processing/priority_pass_analysis.py configurations/demo_sumo_priority_pass_config.json

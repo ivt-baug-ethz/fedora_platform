@@ -142,6 +142,7 @@ fedora_platform/
 - Accepts `lane_measurements_enabled` list from Orchestrator (populated from logic module requirements) — no measurement config needed in JSON
 - Implements FSM lifecycle (CREATED → CONFIGURED → READY → RUNNING → STOPPED); `NAME = "environment"`
 - Publishes traffic metrics (queue lengths, vehicle positions) as JSON messages over TCP
+- Detects vehicle arrivals/departures (and route distances) and **reports** them to the Orchestrator via `vehicle_log_meta` / `vehicle_event` messages — writes **no** log files of its own. Gated by the injected `report_vehicle_events` flag (derived from `recorder.enabled` AND `recorder.vehicle_log_enabled`). This decouples evaluation-relevant state collection from the simulation environment.
 
 **orchestrator.py**
 
@@ -151,6 +152,7 @@ fedora_platform/
 - Sends `"step"` and `"apply_and_advance"` commands to Environment to control each iteration
 - Queries each logic module's `get_required_measurements()` to determine which metrics the Environment should collect; no user configuration of measurement types needed
 - Mirrors all traffic for logging to Recorder component
+- Collects environment-reported vehicle events (`vehicle_event` / `vehicle_log_meta`) and forwards them to the Recorder as `vehicle_log` messages (kept out of the communication log)
 - Supports pluggable environment types via `_ENVIRONMENT_TYPES` dict (currently: `"sumo"`)
 
 **controller_fixed_cycle.py**
@@ -178,7 +180,8 @@ fedora_platform/
 **recorder.py**
 
 - Listens on dedicated TCP port for message copies from Orchestrator
-- Logs all inter-component communication (traffic, commands, state) to text files
+- Logs all inter-component communication (traffic, commands, state) to `communication_log.txt`
+- Writes the vehicle event log (`vehicle_log.jsonl`) from `vehicle_log` messages forwarded by the Orchestrator — this is the sole owner of that file (previously written directly by the environment); opened fresh per run when `vehicle_log_enabled`
 - Writes logs to `logs/` directory for post-simulation analysis
 - Implements FSM for recorder state transitions
 

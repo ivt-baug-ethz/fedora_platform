@@ -3,7 +3,8 @@
 The Orchestrator reads the configuration file and initialises all other components
 (Recorder, LogicModule, Environment).  run.py is intentionally thin: it only
 handles CLI arguments, starts the Orchestrator, and runs the post-run
-Evaluator.
+Evaluator. For Priority Pass configurations it additionally runs the controller-specific
+``PriorityPassAnalysis`` post-processing (prioritized vs. non-prioritized breakdown).
 
 Examples:
     python run.py
@@ -30,6 +31,7 @@ from typing import Any
 from orchestrator import Orchestrator
 from evaluation import Evaluator
 from evaluation.config import EvaluationConfig
+from post_processing.priority_pass_analysis import PriorityPassAnalysis
 
 
 def main() -> None:
@@ -97,6 +99,12 @@ def main() -> None:
     logic_modules = list(config.get("logic_modules", []))
     logic_module_name = str(logic_modules[0]["type"]) if logic_modules else "baseline"
 
+    # Priority Pass runs additionally get controller-specific post-processing that splits
+    # travel times into prioritized vs. non-prioritized vehicles
+    run_priority_pass_analysis = any(
+        m.get("type") == "controller_priority_pass" for m in logic_modules
+    )
+
     # determine whether evaluation should run:
     # --skip-evaluation CLI flag always overrides the config setting
     eval_cfg_dict: dict[str, Any] = config.get("evaluation", {})
@@ -119,6 +127,14 @@ def main() -> None:
                 print(f"Warning: Evaluation skipped — {error}")
             except ValueError as error:
                 print(f"Warning: Invalid evaluation config — {error}")
+
+            # controller-specific post-processing: prioritized vs. non-prioritized
+            # travel-time breakdown and plots for Priority Pass runs
+            if run_priority_pass_analysis:
+                try:
+                    PriorityPassAnalysis(logs_dir, output_dir).run()
+                except FileNotFoundError as error:
+                    print(f"Warning: Priority Pass analysis skipped — {error}")
     except KeyboardInterrupt:
         pass
     finally:

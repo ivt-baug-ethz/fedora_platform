@@ -183,8 +183,8 @@ class Orchestrator:
 
         env_cfg = dict(self.configuration["environment"])
         env_cfg["_scenario_path"] = str(self.configuration["scenario_path"])
-        env_cfg["_logs_dir"] = str(self.configuration["recorder"]["logs_dir"])
-        env_cfg["_vehicle_log_enabled"] = bool(
+        # the environment only reports vehicle events when the recorder can persist them
+        env_cfg["_report_vehicle_events"] = recorder_active and bool(
             self.configuration["recorder"].get("vehicle_log_enabled", True)
         )
         env_cfg["_state_cfg"] = env_state if self._poll_environment else {}
@@ -328,8 +328,7 @@ class Orchestrator:
         """
         # pop internal transport keys before passing the dict to the environment
         scenario_path = str(env_cfg.pop("_scenario_path"))
-        logs_dir = str(env_cfg.pop("_logs_dir"))
-        vehicle_log_enabled = bool(env_cfg.pop("_vehicle_log_enabled", True))
+        report_vehicle_events = bool(env_cfg.pop("_report_vehicle_events", True))
         state_cfg = dict(env_cfg.pop("_state_cfg", {}))
         env_type = str(env_cfg.pop("type", "sumo_simulation"))
         cfg = env_cfg
@@ -347,8 +346,7 @@ class Orchestrator:
         # copy settings block so we don't mutate the original config; inject random_seed
         cfg["settings"] = dict(cfg["settings"])
         cfg["settings"]["random_seed"] = int(setup.get("random_seed", 42))
-        cfg["logs_dir"] = logs_dir
-        cfg["vehicle_log_enabled"] = vehicle_log_enabled
+        cfg["report_vehicle_events"] = report_vehicle_events
         cfg["state_cfg"] = state_cfg
         cfg["lane_measurements_enabled"] = required_measurements
 
@@ -443,6 +441,13 @@ class Orchestrator:
         target = str(message.get("target", "broadcast"))
         topic = str(message.get("topic", ""))
 
+        # vehicle events/metadata reported by the environment are simulation state that
+        # the platform persists via the recorder — collect them here into the vehicle log
+        # instead of the communication log, keeping evaluation decoupled from the environment
+        if sender == "environment" and topic in ("vehicle_event", "vehicle_log_meta"):
+            self._record_vehicle_event(message)
+            return
+
         # log everything except messages already destined for the recorder
         if target != "recorder":
             self._log_message(message)
@@ -519,6 +524,28 @@ class Orchestrator:
         }
         self._forward("recorder", log_message)
 
+    def _record_vehicle_event(self, message: dict[str, Any]) -> None:
+        """Forward an environment vehicle event or metadata to the recorder's vehicle log.
+
+        The recorder writes these payloads to ``vehicle_log.jsonl``. Collecting them
+        through the orchestrator keeps the simulation environment free of any direct
+        logging or evaluation responsibility.
+
+        Args:
+            message: The environment message carrying the vehicle-log payload.
+        """
+        if "recorder" not in self.components:
+            return
+        log_message = {
+            "sender": self.NAME,
+            "target": "recorder",
+            "topic": "vehicle_log",
+            "sent_at": time.time(),
+            "payload": dict(message.get("payload", {})),
+        }
+        # preserve payload key order so vehicle_log.jsonl matches the original format
+        self._forward("recorder", log_message, sort_keys=False)
+
     def _send_step_to_environment(self) -> None:
         """Tell the environment to begin its next measurement-collection iteration."""
         self._forward(
@@ -580,18 +607,23 @@ class Orchestrator:
             for module_name in self._logic_module_names:
                 self._forward(module_name, dict(request_base, target=module_name))
 
-    def _forward(self, target: str, message: dict[str, Any]) -> None:
+    def _forward(
+        self, target: str, message: dict[str, Any], sort_keys: bool = True
+    ) -> None:
         """Send a message to a target component over its persistent TCP connection.
 
         Args:
             target: Destination component name (e.g. "simulation", "logic_module").
             message: Message dict to serialize and send.
+            sort_keys: Whether to sort keys when serializing. Defaults to True; pass
+                False for vehicle-log messages so the recorder writes the payload in
+                its original schema order.
         """
         endpoint = self.components.get(target)
         if endpoint is None:
             return
 
-        encoded = json.dumps(message, sort_keys=True).encode("utf-8") + b"\n"
+        encoded = json.dumps(message, sort_keys=sort_keys).encode("utf-8") + b"\n"
         with self._connections_lock:
             conn = self._connections.get(target)
             try:

@@ -1,5 +1,77 @@
 # Architectural Decisions
 
+## ADR 2026-07-07: Decouple Vehicle-State Logging from the Environment (Recorder Owns `vehicle_log.jsonl`)
+
+### Status
+
+Accepted.
+
+### Context
+
+The SUMO environment tracked vehicle arrival/departure events (with route distances and priority
+status) and wrote them **directly** to `logs/vehicle_log.jsonl`. The evaluation package and the
+post-processing scripts then read that file. This coupled the platform's evaluation capability to
+a file produced by the simulation environment itself — contradicting the framework's stated design
+(README/architecture): the environment is a swappable execution backend on the application layer,
+and all persistence/analysis should be a platform responsibility flowing through the Orchestrator
+and Recorder. An environment writing its own evaluation log meant a real-world or alternative
+environment would either have to re-implement this file or evaluation would silently break.
+
+### Decision
+
+Route vehicle state through the standard message pipeline instead of a side-channel file:
+
+1. **Environment reports, never writes.** `SumoEnvironment` still detects arrivals/departures and
+   computes route distances via TraCI (only it can), but emits them as messages to the
+   Orchestrator: `vehicle_log_meta` (run header, sent once after SUMO opens) and `vehicle_event`
+   (per arrival/departure). All direct file handling (`vehicle_log_file`, `_write_vehicle_log_meta`,
+   `_log_vehicle_event`) was removed. The env config flag `vehicle_log_enabled` became
+   `report_vehicle_events`.
+
+2. **Orchestrator collects.** `_route` intercepts `vehicle_event` / `vehicle_log_meta` from the
+   environment and forwards them to the Recorder as `vehicle_log` messages
+   (`_record_vehicle_event`). These are deliberately kept out of the communication log so
+   `communication_log.txt` is unchanged.
+
+3. **Recorder persists.** The Recorder owns `vehicle_log.jsonl`, opening it fresh per run when
+   `vehicle_log_enabled` and writing each received payload verbatim (a `vehicle_log`-topic branch
+   in `_record`). The file format (run_meta header + per-vehicle event lines) is byte-identical
+   with what the environment previously produced, so `VehicleLogLoader`, `Evaluator`, and the
+   post-processing scripts (including the Priority Pass regular-vs-priority split) are unchanged.
+
+   **Key-order preservation.** `_send_message` (environment) and `_forward` (orchestrator)
+   serialize with `sort_keys=True` by default for stable envelopes, but the vehicle-log path
+   passes `sort_keys=False`. This keeps each record's keys in their original schema order
+   (`vehicle_id, event_type, time, priority, route_distance_m` for events;
+   `type, scenario, traffic_lights, max_steps, spawn_horizon, random_seed, total_lane_length_m`
+   for the header) rather than alphabetically sorted, so the on-disk file matches the previous
+   output exactly. The Recorder stays schema-agnostic — it writes whatever payload it receives,
+   in the order received.
+
+### Rationale
+
+- Route-distance and event detection require TraCI, so the environment must be the *source* — but
+  sourcing state is different from persisting it. Emitting messages (like `traffic_state` and
+  `state_report` already do) keeps the environment a pure state provider.
+- Keeping the on-disk format identical means zero changes to the evaluation/post-processing code
+  and all existing logs remain readable.
+- Writing vehicle events to a dedicated sink (not the communication log) preserves the existing
+  `communication_log.txt` content and topic-filter semantics.
+
+### Consequences
+
+- The vehicle log now requires the Recorder to be enabled. Previously `recorder.enabled: false`
+  still produced `vehicle_log.jsonl` (the env wrote it regardless); now `report_vehicle_events` is
+  `recorder_active AND vehicle_log_enabled`, so disabling the recorder disables the vehicle log
+  (and hence the Evaluator). This is the intended coupling — the Recorder is the platform's logging
+  component.
+- New message topics: `vehicle_log_meta`, `vehicle_event` (Environment → Orchestrator) and
+  `vehicle_log` (Orchestrator → Recorder).
+- The environment no longer needs `logs_dir`; that injection was removed from the Orchestrator's
+  environment configuration.
+
+---
+
 ## ADR 2026-07-02: Add Cross-Controller Vehicle Count Comparison Script
 
 ### Status

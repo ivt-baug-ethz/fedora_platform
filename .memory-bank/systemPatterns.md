@@ -57,7 +57,7 @@ The main application is built from modular FSM-based components in `src/`, orche
 - **`src/controller_fixed_cycle.py`** — Fixed-cycle controller FSM; `get_required_measurements()` returns `[]`
 - **`src/controller_max_pressure.py`** — Max-pressure controller FSM; `get_required_measurements()` returns `["queue_lengths"]` or `["weighted_queue_lengths"]` based on bidding_strategy
 - **`src/controller_priority_pass.py`** — Priority Pass controller FSM; `get_required_measurements()` returns queue measurement + `"upp_bids"`
-- **`src/recorder.py`** — Listens on TCP, logs routed communication to files in `logs/`
+- **`src/recorder.py`** — Listens on TCP, logs routed communication to `communication_log.txt` and, as the sole owner of `vehicle_log.jsonl`, writes environment-reported vehicle events (forwarded by the Orchestrator as `vehicle_log` messages) verbatim to that file. The environment writes no files itself — vehicle-state collection flows Environment → Orchestrator → Recorder, keeping evaluation decoupled from the simulation.
 
 Priority Pass is a strict extension of Max-Pressure for controlled experiments: with
 `trade_off = 0.0`, UPP bids are ignored and the Priority Pass auction FSM must produce the

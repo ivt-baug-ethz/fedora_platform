@@ -317,5 +317,155 @@ class TestRecorderConfigurableLogging(unittest.TestCase):
             self.assertEqual(len(lines), 3)
 
 
+class TestRecorderVehicleLog(unittest.TestCase):
+    """Tests for the dedicated vehicle log sink fed via the orchestrator."""
+
+    def _send_messages(self, port: int, messages: list[dict]) -> None:
+        """Helper to send a list of JSON-line messages to a TCP port."""
+        import socket as sock_mod
+
+        conn = sock_mod.create_connection(("127.0.0.1", port), timeout=2.0)
+        for msg in messages:
+            conn.sendall(json.dumps(msg, sort_keys=True).encode("utf-8") + b"\n")
+        time.sleep(0.15)
+        conn.close()
+
+    def _vehicle_log_message(self, payload: dict) -> dict:
+        """Wrap a vehicle-log payload in the orchestrator envelope."""
+        return {
+            "sender": "orchestrator",
+            "target": "recorder",
+            "topic": "vehicle_log",
+            "sent_at": time.time(),
+            "payload": payload,
+        }
+
+    def test_vehicle_log_written_verbatim(self) -> None:
+        """vehicle_log messages are written to vehicle_log.jsonl, not the comm log."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            rec = Recorder(
+                {
+                    "port": 0,
+                    "logs_dir": tmpdir,
+                    "log_type": "txt",
+                    "vehicle_log_enabled": True,
+                }
+            )
+            rec.start()
+            assert rec.server_socket is not None
+            port = rec.server_socket.getsockname()[1]
+
+            meta = {"type": "run_meta", "scenario": "s", "total_lane_length_m": 100.0}
+            arrival = {
+                "vehicle_id": "v_0",
+                "event_type": "arrival",
+                "time": 1.0,
+                "priority": 0,
+            }
+            departure = {
+                "vehicle_id": "v_0",
+                "event_type": "departure",
+                "time": 5.0,
+                "priority": 0,
+                "route_distance_m": 42.0,
+            }
+            self._send_messages(
+                port,
+                [
+                    self._vehicle_log_message(meta),
+                    self._vehicle_log_message(arrival),
+                    self._vehicle_log_message(departure),
+                ],
+            )
+            rec.stop()
+
+            vehicle_log = Path(tmpdir) / "vehicle_log.jsonl"
+            self.assertTrue(vehicle_log.exists())
+            lines = vehicle_log.read_text(encoding="utf-8").strip().splitlines()
+            self.assertEqual(len(lines), 3)
+            self.assertEqual(json.loads(lines[0]), meta)
+            self.assertEqual(json.loads(lines[1]), arrival)
+            self.assertEqual(json.loads(lines[2]), departure)
+
+            # vehicle-log messages must not leak into the communication log
+            comm_lines = (
+                (Path(tmpdir) / "communication_log.txt")
+                .read_text(encoding="utf-8")
+                .strip()
+                .splitlines()
+            )
+            self.assertEqual(len(comm_lines), 1)  # only the run_meta header
+
+    def test_vehicle_log_preserves_key_order(self) -> None:
+        """Vehicle-log records are written in received key order (not alphabetically sorted).
+
+        This keeps vehicle_log.jsonl byte-identical to the format the environment used to
+        write directly, so downstream tooling that relies on the exact layout is unaffected.
+        """
+        import socket as sock_mod
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            rec = Recorder(
+                {
+                    "port": 0,
+                    "logs_dir": tmpdir,
+                    "log_type": "txt",
+                    "vehicle_log_enabled": True,
+                }
+            )
+            rec.start()
+            assert rec.server_socket is not None
+            port = rec.server_socket.getsockname()[1]
+
+            # schema key order as produced by the environment (deliberately non-alphabetical)
+            departure = {
+                "vehicle_id": "v_7",
+                "event_type": "departure",
+                "time": 5.0,
+                "priority": 1,
+                "route_distance_m": 42.0,
+            }
+            msg = self._vehicle_log_message(departure)
+
+            # send WITHOUT sort_keys, exactly as the orchestrator forwards vehicle-log messages
+            conn = sock_mod.create_connection(("127.0.0.1", port), timeout=2.0)
+            conn.sendall(json.dumps(msg).encode("utf-8") + b"\n")
+            time.sleep(0.15)
+            conn.close()
+            rec.stop()
+
+            line = (
+                (Path(tmpdir) / "vehicle_log.jsonl")
+                .read_text(encoding="utf-8")
+                .strip()
+                .splitlines()[0]
+            )
+            parsed = json.loads(line)
+            self.assertEqual(list(parsed.keys()), list(departure.keys()))
+
+    def test_vehicle_log_disabled_writes_no_file(self) -> None:
+        """With vehicle_log_enabled False, no vehicle_log.jsonl is created."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            rec = Recorder(
+                {
+                    "port": 0,
+                    "logs_dir": tmpdir,
+                    "log_type": "txt",
+                    "vehicle_log_enabled": False,
+                }
+            )
+            rec.start()
+            assert rec.server_socket is not None
+            port = rec.server_socket.getsockname()[1]
+
+            self._send_messages(
+                port,
+                [self._vehicle_log_message({"type": "run_meta", "scenario": "s"})],
+            )
+            rec.stop()
+
+            self.assertFalse((Path(tmpdir) / "vehicle_log.jsonl").exists())
+
+
 if __name__ == "__main__":
     unittest.main()
