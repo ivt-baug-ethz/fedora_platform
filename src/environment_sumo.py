@@ -1018,9 +1018,7 @@ class SumoEnvironment:
             record["route_distance_m"] = self.vehicle_route_distances.pop(vehicle_id)
         if self.report_vehicle_events:
             # keep original key order so the recorder's vehicle_log.jsonl is unchanged
-            self._send_message(
-                "orchestrator", "vehicle_event", record, sort_keys=False
-            )
+            self._send_message("orchestrator", "vehicle_event", record, sort_keys=False)
 
     def _send_message(
         self,
